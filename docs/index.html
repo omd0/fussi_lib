@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مكتبة بيت الفصي الرقمية - Fussi Library App</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap RTL CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -11,199 +19,365 @@
     <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1 class="app-title">📚 مكتبة بيت الفصي الرقمية</h1>
-                <p class="app-subtitle">Fussi Library Digital Management System</p>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-book"></i> مكتبة بيت الفصي
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#home">الرئيسية</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">المميزات</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#download">التحميل</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#installation">التثبيت</a>
+                    </li>
+                </ul>
             </div>
-        </header>
+        </div>
+    </nav>
 
-        <!-- Hero Section -->
-        <section class="hero">
-            <div class="hero-content">
-                <div class="hero-text">
-                    <h2 class="hero-title">تطبيق ذكي لإدارة المكتبة</h2>
-                    <p class="hero-description">
-                        تطبيق Flutter متطور لإدارة مكتبة بيت الفصي مع دعم كامل للغة العربية 
-                        وتكامل مع Google Sheets للبيانات المباشرة
-                    </p>
-                    <div class="hero-features">
-                        <div class="feature">
-                            <span class="feature-icon">🌍</span>
-                            <span>دعم كامل للعربية</span>
+    <!-- Hero Section -->
+    <section id="home" class="hero-section">
+        <div class="container">
+            <div class="row align-items-center min-vh-100">
+                <div class="col-lg-6">
+                    <div class="hero-content">
+                        <h1 class="display-4 fw-bold text-white mb-4">
+                            📚 مكتبة بيت الفصي الرقمية
+                        </h1>
+                        <p class="lead text-white-50 mb-4">
+                            تطبيق Flutter متطور لإدارة مكتبة بيت الفصي مع دعم كامل للغة العربية 
+                            وتكامل مع Google Sheets للبيانات المباشرة
+                        </p>
+                        <div class="hero-features mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-globe text-warning fs-4 me-3"></i>
+                                <span class="text-white">دعم كامل للعربية</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-graph-up text-info fs-4 me-3"></i>
+                                <span class="text-white">تكامل مع Google Sheets</span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-phone text-success fs-4 me-3"></i>
+                                <span class="text-white">واجهة حديثة وسهلة</span>
+                            </div>
                         </div>
-                        <div class="feature">
-                            <span class="feature-icon">📊</span>
-                            <span>تكامل مع Google Sheets</span>
-                        </div>
-                        <div class="feature">
-                            <span class="feature-icon">📱</span>
-                            <span>واجهة حديثة وسهلة</span>
+                        <div class="d-flex gap-3">
+                            <a href="#download" class="btn btn-primary btn-lg">
+                                <i class="bi bi-download me-2"></i>تحميل التطبيق
+                            </a>
+                            <a href="https://github.com/omd0/fussi_lib" class="btn btn-outline-light btn-lg">
+                                <i class="bi bi-github me-2"></i>عرض الكود
+                            </a>
                         </div>
                     </div>
                 </div>
-                <div class="hero-visual">
-                    <div class="app-mockup">
+                <div class="col-lg-6">
+                    <div class="app-mockup text-center">
                         <div class="phone-frame">
                             <div class="phone-screen">
                                 <div class="app-header">
-                                    <h3>مكتبة بيت الفصي</h3>
+                                    <h3 class="text-white">مكتبة بيت الفصي</h3>
                                 </div>
                                 <div class="app-content">
-                                    <div class="menu-item">🏠 الصفحة الرئيسية</div>
-                                    <div class="menu-item">➕ إضافة كتاب</div>
-                                    <div class="menu-item">📚 تصفح المكتبة</div>
-                                    <div class="menu-item">📈 الإحصائيات</div>
+                                    <div class="menu-item">
+                                        <i class="bi bi-house me-2"></i>الصفحة الرئيسية
+                                    </div>
+                                    <div class="menu-item">
+                                        <i class="bi bi-plus-circle me-2"></i>إضافة كتاب
+                                    </div>
+                                    <div class="menu-item">
+                                        <i class="bi bi-collection me-2"></i>تصفح المكتبة
+                                    </div>
+                                    <div class="menu-item">
+                                        <i class="bi bi-bar-chart me-2"></i>الإحصائيات
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- Download Section -->
-        <section class="download-section">
-            <div class="download-content">
-                <h2 class="download-title">📥 تحميل التطبيق</h2>
-                <div class="version-info">
-                    <div class="version-badge">
-                        <span class="version-number">v1.0.0</span>
-                        <span class="version-label">أحدث إصدار</span>
+    <!-- Download Section -->
+    <section id="download" class="py-5 bg-light">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center">
+                    <h2 class="display-5 fw-bold text-primary mb-5">
+                        <i class="bi bi-download me-3"></i>تحميل التطبيق
+                    </h2>
+                    
+                    <div class="row justify-content-center mb-5">
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <div class="badge bg-success fs-6 mb-2">v1.0.0</div>
+                                    <h5 class="card-title">أحدث إصدار</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <div class="badge bg-info fs-6 mb-2">23.5 MB</div>
+                                    <h5 class="card-title">حجم الملف</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <div class="badge bg-warning fs-6 mb-2">APK</div>
+                                    <h5 class="card-title">نوع الملف</h5>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="file-info">
-                        <span class="file-size">23.5 MB</span>
-                        <span class="file-type">APK</span>
+
+                    <div class="d-flex justify-content-center gap-3 mb-5">
+                        <a href="https://github.com/omd0/fussi_lib/releases/download/v1.0.0/fussi_library_v1.0.0.apk" 
+                           class="btn btn-primary btn-lg">
+                            <i class="bi bi-android me-2"></i>تحميل APK
+                        </a>
+                        <a href="https://github.com/omd0/fussi_lib" 
+                           class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-github me-2"></i>عرض الكود المصدري
+                        </a>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3">
+                                <i class="bi bi-info-circle me-2"></i>متطلبات النظام:
+                            </h5>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>Android 8.0 أو أحدث
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>مساحة تخزين 50 ميجابايت على الأقل
+                                </li>
+                                <li>
+                                    <i class="bi bi-check-circle text-success me-2"></i>اتصال بالإنترنت للاستخدام الكامل
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
-                <div class="download-actions">
-                    <a href="https://github.com/omd0/fussi_lib/releases/download/v1.0.0/fussi_library_v1.0.0.apk" 
-                       class="download-btn primary">
-                        <span class="btn-icon">📱</span>
-                        <span class="btn-text">تحميل APK</span>
-                    </a>
-                    <a href="https://github.com/omd0/fussi_lib" 
-                       class="download-btn secondary">
-                        <span class="btn-icon">📂</span>
-                        <span class="btn-text">عرض الكود المصدري</span>
-                    </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-5">
+        <div class="container">
+            <div class="row justify-content-center mb-5">
+                <div class="col-lg-8 text-center">
+                    <h2 class="display-5 fw-bold text-primary">
+                        <i class="bi bi-star me-3"></i>المميزات الرئيسية
+                    </h2>
+                    <p class="lead text-muted">اكتشف ما يجعل تطبيقنا مميزاً</p>
                 </div>
-                <div class="system-requirements">
-                    <h4>متطلبات النظام:</h4>
-                    <ul>
-                        <li>Android 8.0 أو أحدث</li>
-                        <li>مساحة تخزين 50 ميجابايت على الأقل</li>
-                        <li>اتصال بالإنترنت للاستخدام الكامل</li>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm feature-card">
+                        <div class="card-body text-center">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-globe text-primary fs-1"></i>
+                            </div>
+                            <h5 class="card-title">تصميم عربي أول</h5>
+                            <p class="card-text">دعم كامل للغة العربية مع اتجاه RTL وخط Cairo</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm feature-card">
+                        <div class="card-body text-center">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-pencil-square text-success fs-1"></i>
+                            </div>
+                            <h5 class="card-title">نظام إدخال ذكي</h5>
+                            <p class="card-text">نماذج سهلة الاستخدام مع التحقق المباشر من البيانات</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm feature-card">
+                        <div class="card-body text-center">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-graph-up text-info fs-1"></i>
+                            </div>
+                            <h5 class="card-title">تكامل Google Sheets</h5>
+                            <p class="card-text">مزامنة مباشرة مع جداول البيانات الإلكترونية</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm feature-card">
+                        <div class="card-body text-center">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-database text-warning fs-1"></i>
+                            </div>
+                            <h5 class="card-title">قاعدة بيانات محلية</h5>
+                            <p class="card-text">تخزين محلي مع إمكانية العمل بدون إنترنت</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm feature-card">
+                        <div class="card-body text-center">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-bar-chart text-danger fs-1"></i>
+                            </div>
+                            <h5 class="card-title">لوحة إحصائيات</h5>
+                            <p class="card-text">عرض إحصائيات المكتبة والتحليلات</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm feature-card">
+                        <div class="card-body text-center">
+                            <div class="feature-icon mb-3">
+                                <i class="bi bi-wifi text-secondary fs-1"></i>
+                            </div>
+                            <h5 class="card-title">شبكة P2P</h5>
+                            <p class="card-text">مشاركة البيانات بين الأجهزة مباشرة</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Guide -->
+    <section id="installation" class="py-5 bg-light">
+        <div class="container">
+            <div class="row justify-content-center mb-5">
+                <div class="col-lg-8 text-center">
+                    <h2 class="display-5 fw-bold text-primary">
+                        <i class="bi bi-list-check me-3"></i>دليل التثبيت
+                    </h2>
+                    <p class="lead text-muted">خطوات بسيطة لتثبيت التطبيق</p>
+                </div>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="step-number mb-3">1</div>
+                            <h5 class="card-title">تحميل الملف</h5>
+                            <p class="card-text">قم بتحميل ملف APK من الرابط أعلاه</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="step-number mb-3">2</div>
+                            <h5 class="card-title">تفعيل التثبيت</h5>
+                            <p class="card-text">افتح الإعدادات > الأمان > تفعيل "التثبيت من مصادر غير معروفة"</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="step-number mb-3">3</div>
+                            <h5 class="card-title">تثبيت التطبيق</h5>
+                            <p class="card-text">افتح ملف APK واضغط على "تثبيت"</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="step-number mb-3">4</div>
+                            <h5 class="card-title">بدء الاستخدام</h5>
+                            <p class="card-text">افتح التطبيق وابدأ في إدارة مكتبتك</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <h5 class="mb-3">
+                        <i class="bi bi-book me-2"></i>مكتبة بيت الفصي الرقمية
+                    </h5>
+                    <p class="text-muted">تطبيق ذكي لإدارة المكتبة مع دعم كامل للغة العربية</p>
+                </div>
+                <div class="col-lg-4">
+                    <h5 class="mb-3">روابط مفيدة</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <a href="https://github.com/omd0/fussi_lib" class="text-muted text-decoration-none">
+                                <i class="bi bi-github me-2"></i>GitHub Repository
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="https://github.com/omd0/fussi_lib/releases" class="text-muted text-decoration-none">
+                                <i class="bi bi-download me-2"></i>Releases
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/omd0/fussi_lib/issues" class="text-muted text-decoration-none">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Report Issues
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-lg-4">
+                    <h5 class="mb-3">التقنيات المستخدمة</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-code-slash me-2"></i>Flutter 3.x
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-code-slash me-2"></i>Dart
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-google me-2"></i>Google Sheets API
+                        </li>
+                        <li>
+                            <i class="bi bi-database me-2"></i>SQLite
+                        </li>
                     </ul>
                 </div>
             </div>
-        </section>
-
-        <!-- Features Section -->
-        <section class="features-section">
-            <h2 class="section-title">✨ المميزات الرئيسية</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🌍</div>
-                    <h3>تصميم عربي أول</h3>
-                    <p>دعم كامل للغة العربية مع اتجاه RTL وخط Cairo</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>نظام إدخال ذكي</h3>
-                    <p>نماذج سهلة الاستخدام مع التحقق المباشر من البيانات</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>تكامل Google Sheets</h3>
-                    <p>مزامنة مباشرة مع جداول البيانات الإلكترونية</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💾</div>
-                    <h3>قاعدة بيانات محلية</h3>
-                    <p>تخزين محلي مع إمكانية العمل بدون إنترنت</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📈</div>
-                    <h3>لوحة إحصائيات</h3>
-                    <p>عرض إحصائيات المكتبة والتحليلات</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔗</div>
-                    <h3>شبكة P2P</h3>
-                    <p>مشاركة البيانات بين الأجهزة مباشرة</p>
-                </div>
+            <hr class="my-4">
+            <div class="text-center">
+                <p class="mb-0 text-muted">
+                    Built with ❤️ for Beit Al-Fussi Library | Smart but Simple - ذكي لكن بسيط
+                </p>
             </div>
-        </section>
+        </div>
+    </footer>
 
-        <!-- Installation Guide -->
-        <section class="installation-section">
-            <h2 class="section-title">📋 دليل التثبيت</h2>
-            <div class="installation-steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h4>تحميل الملف</h4>
-                        <p>قم بتحميل ملف APK من الرابط أعلاه</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h4>تفعيل التثبيت</h4>
-                        <p>افتح الإعدادات > الأمان > تفعيل "التثبيت من مصادر غير معروفة"</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h4>تثبيت التطبيق</h4>
-                        <p>افتح ملف APK واضغط على "تثبيت"</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h4>بدء الاستخدام</h4>
-                        <p>افتح التطبيق وابدأ في إدارة مكتبتك</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>مكتبة بيت الفصي الرقمية</h4>
-                    <p>تطبيق ذكي لإدارة المكتبة مع دعم كامل للغة العربية</p>
-                </div>
-                <div class="footer-section">
-                    <h4>روابط مفيدة</h4>
-                    <ul>
-                        <li><a href="https://github.com/omd0/fussi_lib">GitHub Repository</a></li>
-                        <li><a href="https://github.com/omd0/fussi_lib/releases">Releases</a></li>
-                        <li><a href="https://github.com/omd0/fussi_lib/issues">Report Issues</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>التقنيات المستخدمة</h4>
-                    <ul>
-                        <li>Flutter 3.x</li>
-                        <li>Dart</li>
-                        <li>Google Sheets API</li>
-                        <li>SQLite</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>Built with ❤️ for Beit Al-Fussi Library | Smart but Simple - ذكي لكن بسيط</p>
-            </div>
-        </footer>
-    </div>
-
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
