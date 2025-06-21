@@ -599,4 +599,45 @@ html {
         background: white !important;
         color: black !important;
     }
+}
+
+/* Enhanced Menu Item Styles */
+.menu-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.menu-item.active {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.menu-item.disabled {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    opacity: 0.7;
+}
+
+.menu-item.disabled:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: none;
+}
+
+/* Feature Card Status Styling */
+.feature-card.border-success {
+    border-left: 4px solid #198754 !important;
+}
+
+.feature-card.border-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.feature-card.border-secondary {
+    border-left: 4px solid #6c757d !important;
+}
+
+/* Position badges properly */
+.feature-card {
+    position: relative;
 } 
