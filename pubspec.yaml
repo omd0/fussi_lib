@@ -20,8 +20,9 @@ dependencies:
   # UI & Fonts
   google_fonts: ^6.1.0
   
-  # State Management & Utilities
+  # State Management & Utilities - Riverpod 3
   flutter_riverpod: ^2.5.1
+  riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
   shared_preferences: ^2.2.2
   
@@ -33,6 +34,7 @@ dependencies:
 
   # Local Database
   sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.0
   path: ^1.8.3
   
   # P2P Networking
