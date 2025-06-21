@@ -1,35 +1,27 @@
 {
-    "name": "fussi_lib",
-    "short_name": "fussi_lib",
-    "start_url": ".",
+    "name": "مكتبة بيت الفصي الرقمية - Fussi Library App",
+    "short_name": "Fussi Library",
+    "description": "تطبيق ذكي لإدارة مكتبة بيت الفصي مع دعم كامل للغة العربية",
+    "start_url": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1E3A8A",
+    "theme_color": "#1E3A8A",
     "orientation": "portrait-primary",
-    "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-maskable-192.png",
-            "sizes": "192x192",
             "type": "image/png",
-            "purpose": "maskable"
-        },
-        {
-            "src": "icons/Icon-maskable-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
+            "purpose": "any maskable"
         }
-    ]
+    ],
+    "categories": ["education", "productivity", "utilities"],
+    "lang": "ar",
+    "dir": "rtl"
 }
