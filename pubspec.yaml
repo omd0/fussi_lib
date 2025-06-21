@@ -1,0 +1,62 @@
+name: fussi_lib
+description: "Arabic-first Flutter app for Beit Al-Fussi Library management"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # Google Sheets Integration
+  googleapis: ^12.0.0
+  googleapis_auth: ^1.4.1
+  
+  # UI & Fonts
+  google_fonts: ^6.1.0
+  
+  # State Management & Utilities
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  shared_preferences: ^2.2.2
+  
+  # Icons
+  cupertino_icons: ^1.0.2
+  
+  # HTTP client
+  http: ^1.1.0
+
+  # Local Database
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  
+  # P2P Networking
+  flutter_p2p_connection: ^3.0.0
+  network_info_plus: ^4.1.0
+  device_info_plus: ^9.1.1
+  
+  # File handling
+  path_provider: ^2.1.1
+  
+  # Network connectivity
+  connectivity_plus: ^5.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.7
+  riverpod_generator: ^2.4.2
+  riverpod_lint: ^2.3.12
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/credentials/
+    - assets/images/ 

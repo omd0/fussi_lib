@@ -1,0 +1,133 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Additional Flutter/Dart specific
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.config.dart
+*.part.dart
+
+# Coverage
+coverage/
+*.lcov
+
+# Flutter test related
+test_driver/
+test/coverage/
+.coverage/
+
+# Generated files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+
+# Credentials and sensitive files (IMPORTANT: Keep credentials secure!)
+assets/credentials/service-account-key.json
+**/credentials/
+**/*.key
+**/*.pem
+**/*.p12
+**/*.keystore
+**/*.jks
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+**/build/
+**/dist/
+**/out/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# Platform specific
+# iOS
+**/ios/Pods/
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/.symlinks/
+**/ios/Flutter/flutter_export_environment.sh
+
+# Android
+**/android/.gradle/
+**/android/gradle/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/key.properties
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+
+# macOS
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Windows
+**/windows/flutter/ephemeral/
+
+# Linux
+**/linux/flutter/ephemeral/
+
+# Web
+**/web/packages/
+**/web/.packages
+
+# Logs
+flutter_*.log
+*.log
+
+# Temporary files
+**/.tmp/
+**/tmp/
+**/*.tmp
+**/*.temp
