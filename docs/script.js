@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Download button animation
-    const downloadBtn = document.querySelector('.btn-primary[href*=".apk"]');
+    const downloadBtn = document.querySelector('a[href*=".apk"][download]');
     if (downloadBtn) {
         downloadBtn.addEventListener('click', function(e) {
             const originalContent = this.innerHTML;
@@ -28,11 +28,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 جاري التحميل...
             `;
-            this.disabled = true;
+            this.style.pointerEvents = 'none';
             
             setTimeout(() => {
                 this.innerHTML = originalContent;
-                this.disabled = false;
+                this.style.pointerEvents = 'auto';
             }, 3000);
         });
     }

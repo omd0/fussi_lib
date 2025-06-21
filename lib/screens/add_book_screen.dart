@@ -7,8 +7,8 @@ import '../services/hybrid_library_service.dart';
 import '../services/structure_loader_service.dart';
 
 class AddBookScreen extends ConsumerStatefulWidget {
-  const AddBookScreen({super.key});
-r
+  AddBookScreen({super.key});
+
   @override
   ConsumerState<AddBookScreen> createState() => _AddBookScreenState();
 }
