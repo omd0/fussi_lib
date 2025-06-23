@@ -5,6 +5,16 @@ class AppConstants {
   static const String spreadsheetId =
       '1-TXwGU-Rku_a6Dx4C5rFvNNPWOs3TvD75JY8Y0byGsY';
   static const String sheetRange = 'الفهرس!A:G';
+  static const String keySheetRange = 'مفتاح!A:H';
+
+  // Column mappings for main data sheet (الفهرس)
+  static const int locationRowColumn = 0; // A - Library Location (Row)
+  static const int locationColumnColumn = 1; // B - Library Location (Column)
+  static const int categoryColumn = 2; // C - Category
+  static const int bookNameColumn = 3; // D - Book Name
+  static const int authorColumn = 4; // E - Author Name
+  static const int volumeColumn = 5; // F - Volume Number
+  static const int descriptionColumn = 6; // G - Brief Description
 
   // Colors
   static const Color primaryColor = Color(0xFF1E3A8A);
@@ -15,18 +25,16 @@ class AppConstants {
   static const Color textColor = Color(0xFF1F2937);
   static const Color hintColor = Color(0xFF9CA3AF);
 
-  // Arabic Categories
+  // Arabic Categories (from Google Sheets structure)
   static const List<String> categories = [
-    'الأدب العربي',
-    'التاريخ الإسلامي',
-    'الفقه والشريعة',
-    'العلوم الطبيعية',
-    'الفلسفة',
-    'الشعر',
-    'السيرة النبوية',
-    'التفسير',
-    'اللغة العربية',
-    'أخرى'
+    'علوم',
+    'إسلاميات',
+    'إنسانيات',
+    'لغة وأدب',
+    'أعمال وإدارة',
+    'فنون',
+    'ثقافة عامة',
+    'روايات',
   ];
 
   // App Strings

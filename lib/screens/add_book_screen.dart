@@ -7,7 +7,7 @@ import '../services/hybrid_library_service.dart';
 import '../services/structure_loader_service.dart';
 
 class AddBookScreen extends ConsumerStatefulWidget {
-  AddBookScreen({super.key});
+  const AddBookScreen({super.key});
 
   @override
   ConsumerState<AddBookScreen> createState() => _AddBookScreenState();
@@ -35,7 +35,9 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
 
   @override
   void dispose() {
-    _controllers.values.forEach((controller) => controller.dispose());
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -45,11 +47,15 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
 
   void _initializeControllers(Map<String, String> headers) {
     // Clear existing controllers
-    _controllers.values.forEach((controller) => controller.dispose());
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
     _controllers.clear();
 
     // Create controllers for each header
-    headers.forEach((key, value) {
+    for (final entry in headers.entries) {
+      final key = entry.key;
+      final value = entry.value;
       if (value.isNotEmpty) {
         _controllers[key] = TextEditingController();
 
@@ -58,7 +64,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
           _controllers[key]!.text = _lockedValues[key]!;
         }
       }
-    });
+    }
   }
 
   Future<void> _handleFormSubmit() async {
@@ -71,9 +77,9 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     try {
       // Get form data
       final formData = <String, String>{};
-      _controllers.forEach((key, controller) {
-        formData[key] = controller.text.trim();
-      });
+      for (final entry in _controllers.entries) {
+        formData[entry.key] = entry.value.text.trim();
+      }
 
       // Store locked values before processing
       _updateLockedValues(formData);
@@ -129,23 +135,25 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
 
   void _updateLockedValues(Map<String, String> formData) {
     // Store locked field values for next form
-    _lockedFields.forEach((fieldName, isLocked) {
-      if (isLocked && formData.containsKey(fieldName)) {
-        _lockedValues[fieldName] = formData[fieldName]!;
+    for (final entry in _lockedFields.entries) {
+      if (entry.value && formData.containsKey(entry.key)) {
+        _lockedValues[entry.key] = formData[entry.key]!;
       }
-    });
+    }
   }
 
   void _clearForm() {
-    _controllers.values.forEach((controller) => controller.clear());
+    for (final controller in _controllers.values) {
+      controller.clear();
+    }
   }
 
   void _clearNonLockedFields() {
-    _controllers.forEach((key, controller) {
-      if (!_isFieldLocked(key)) {
-        controller.clear();
+    for (final entry in _controllers.entries) {
+      if (!_isFieldLocked(entry.key)) {
+        entry.value.clear();
       }
-    });
+    }
   }
 
   void _toggleFieldLock(String fieldName) {
@@ -387,7 +395,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
         ),
         child: Column(
           children: [
-            Icon(
+            const Icon(
               Icons.warning_amber_rounded,
               size: 48,
               color: Colors.orange,
@@ -460,25 +468,27 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
             const SizedBox(height: 20),
 
             // Generate form fields based on structure
-            ...structure.indexStructure.entries.map((entry) {
-              final columnKey = entry.key;
-              final columnName =
-                  entry.value.isNotEmpty ? entry.value.first : '';
+            for (final entry in structure.indexStructure.entries) ...[
+              () {
+                final columnKey = entry.key;
+                final columnName =
+                    entry.value.isNotEmpty ? entry.value.first : '';
 
-              if (columnName.isEmpty) return const SizedBox.shrink();
+                if (columnName.isEmpty) return const SizedBox.shrink();
 
-              return Column(
-                children: [
-                  _buildFormField(
-                    columnKey,
-                    columnName,
-                    categoriesAsync,
-                    locationsAsync,
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              );
-            }).toList(),
+                return Column(
+                  children: [
+                    _buildFormField(
+                      columnKey,
+                      columnName,
+                      categoriesAsync,
+                      locationsAsync,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              }(),
+            ],
 
             const SizedBox(height: 20),
 
@@ -526,49 +536,62 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Label only (no lock button here)
+        Text(
+          columnName,
+          style: GoogleFonts.cairo(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Input field with aligned lock button
         Row(
           children: [
             Expanded(
-              child: Text(
-                columnName,
-                style: GoogleFonts.cairo(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppConstants.textColor,
-                ),
-              ),
+              child:
+                  // Special handling for category and location fields
+                  columnKey == 'C' // التصنيف
+                      ? _buildCategoryDropdown(
+                          controller, categoriesAsync, isLocked, columnKey)
+                      : columnKey == 'A' // الموقع في المكتبة
+                          ? _buildLocationField(
+                              controller, locationsAsync, isLocked, columnKey)
+                          : _buildTextFormField(
+                              controller, columnName, isLocked, columnKey),
             ),
-            if (_lockModeEnabled)
+            // Lock button aligned with input field
+            if (_lockModeEnabled) ...[
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => _toggleFieldLock(columnKey),
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isLocked
                         ? AppConstants.primaryColor.withOpacity(0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(4),
+                        : AppConstants.backgroundColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isLocked
+                          ? AppConstants.primaryColor
+                          : AppConstants.hintColor.withOpacity(0.3),
+                    ),
                   ),
                   child: Icon(
                     isLocked ? Icons.lock : Icons.lock_open,
-                    size: 16,
+                    size: 20,
                     color: isLocked
                         ? AppConstants.primaryColor
                         : AppConstants.hintColor,
                   ),
                 ),
               ),
+            ],
           ],
         ),
-        const SizedBox(height: 8),
-
-        // Special handling for category and location fields
-        if (columnKey == 'C') // التصنيف
-          _buildCategoryDropdown(controller, categoriesAsync, isLocked)
-        else if (columnKey == 'A') // الموقع في المكتبة
-          _buildLocationField(controller, locationsAsync, isLocked)
-        else
-          _buildTextFormField(controller, columnName, isLocked),
       ],
     );
   }
@@ -577,6 +600,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     TextEditingController controller,
     AsyncValue<List<String>> categoriesAsync,
     bool isLocked,
+    String columnKey,
   ) {
     return categoriesAsync.when(
       data: (categories) => DropdownButtonFormField<String>(
@@ -584,7 +608,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
         decoration: InputDecoration(
           filled: true,
           fillColor: isLocked
-              ? AppConstants.primaryColor.withOpacity(0.1)
+              ? AppConstants.primaryColor.withValues(alpha: 0.1)
               : AppConstants.backgroundColor,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -614,8 +638,9 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
           return null;
         },
       ),
-      loading: () => _buildTextFormField(controller, 'التصنيف', isLocked),
-      error: (_, __) => _buildTextFormField(controller, 'التصنيف', isLocked),
+      loading: () => _buildTextFormField(controller, 'التصنيف', isLocked, 'C'),
+      error: (_, __) =>
+          _buildTextFormField(controller, 'التصنيف', isLocked, 'C'),
     );
   }
 
@@ -623,6 +648,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     TextEditingController controller,
     AsyncValue<Map<String, List<String>>> locationsAsync,
     bool isLocked,
+    String columnKey,
   ) {
     return locationsAsync.when(
       data: (locations) {
@@ -702,9 +728,9 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
         );
       },
       loading: () =>
-          _buildTextFormField(controller, 'الموقع في المكتبة', isLocked),
+          _buildTextFormField(controller, 'الموقع في المكتبة', isLocked, 'A'),
       error: (_, __) =>
-          _buildTextFormField(controller, 'الموقع في المكتبة', isLocked),
+          _buildTextFormField(controller, 'الموقع في المكتبة', isLocked, 'A'),
     );
   }
 
@@ -712,6 +738,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     TextEditingController controller,
     String label,
     bool isLocked,
+    String columnKey,
   ) {
     return TextFormField(
       controller: controller,

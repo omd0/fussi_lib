@@ -198,10 +198,10 @@ class DynamicSheetsService {
 
       const spreadsheetId = '1-TXwGU-Rku_a6Dx4C5rFvNNPWOs3TvD75JY8Y0byGsY';
 
-      // Limit to specific columns to avoid JSON parsing issues
+      // Use correct range to get all key data including authors in column F
       final keyData = await sheetsApi.spreadsheets.values.get(
         spreadsheetId,
-        'مفتاح!A1:D20', // Limited range to avoid issues
+        'مفتاح!A:H', // Full range to include authors in column F
       );
 
       client.close();
@@ -221,22 +221,22 @@ class DynamicSheetsService {
     }
   }
 
-  // Fallback static key configuration based on what we found
+  // Fallback static key configuration based on actual structure
   List<List<String>> _getStaticKeyConfiguration() {
     return [
-      ['الصف', 'العامود', '', 'تصنيفات'],
-      ['A', '1', '', 'علوم'],
-      ['B', '2', '', 'إسلاميات'],
-      ['C', '3', '', 'إنسانيات'],
-      ['D', '4', '', 'لغة وأدب'],
-      ['E', '5', '', 'أعمال وإدارة'],
-      ['', '6', '', 'فنون'],
-      ['', '7', '', 'ثقافة عامة'],
-      ['', '8', '', 'روايات'],
+      ['الصف', 'العامود', '', 'تصنيفات', '', 'المؤلفين'],
+      ['A', '1', '', 'علوم', '', 'إبراهيم عباس'],
+      ['B', '2', '', 'إسلاميات', '', 'ياسر بهجت'],
+      ['C', '3', '', 'إنسانيات', '', 'مهن الهناني'],
+      ['D', '4', '', 'لغة وأدب', '', 'أحمد مراد'],
+      ['E', '5', '', 'أعمال وإدارة', '', 'تزكية النفس والدعاء'],
+      ['', '6', '', 'فنون', '', ''],
+      ['', '7', '', 'ثقافة عامة', '', ''],
+      ['', '8', '', 'روايات', '', ''],
     ];
   }
 
-  // Extract dropdown options from key configuration
+  // Extract dropdown options from key configuration ONLY (efficient!)
   Map<String, dynamic> _getKeyOptionsForColumn(
       String header, int columnIndex, List<List<String>> keyConfig) {
     // Check if this is a category column
@@ -251,65 +251,48 @@ class DynamicSheetsService {
         }
       }
       print(
-          '🎯 Found ${categories.length} categories from key: ${categories.join(', ')}');
-      return {'type': 'dropdown', 'options': categories};
-    }
-
-    // Check if this is a location column
-    else if (header.contains('موقع') ||
-        header.toLowerCase().contains('location')) {
-      final rows = <String>{}; // صف (A, B, C, D, E)
-      final columns = <String>{}; // عامود (1, 2, 3, 4, 5, 6, 7, 8)
-
-      for (int i = 1; i < keyConfig.length; i++) {
-        if (keyConfig[i].isNotEmpty) {
-          final rowValue = keyConfig[i][0].trim();
-          if (rowValue.isNotEmpty && RegExp(r'^[A-Z]$').hasMatch(rowValue)) {
-            rows.add(rowValue);
-          }
-        }
-        if (keyConfig[i].length > 1) {
-          final columnValue = keyConfig[i][1].trim();
-          if (columnValue.isNotEmpty &&
-              RegExp(r'^\d+$').hasMatch(columnValue)) {
-            columns.add(columnValue);
-          }
-        }
-      }
-
-      final rowsList = rows.toList()..sort();
-      final columnsList = columns.toList()
-        ..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-
-      print('🎯 Found location rows (صف): ${rowsList.join(', ')}');
-      print('🎯 Found location columns (عامود): ${columnsList.join(', ')}');
-
+          '🎯 Found ${categories.length} categories from Key sheet: ${categories.take(5).join(', ')}${categories.length > 5 ? '...' : ''}');
       return {
-        'type': 'location_compound',
-        'rows': rowsList,
-        'columns': columnsList
+        'type': 'dropdown',
+        'options': categories.toSet().toList()..sort(),
       };
     }
 
-    // Check if this is an author column
+    // Check if this is an author column - USE ONLY KEY SHEET
     else if (header.contains('مؤلف') ||
         header.toLowerCase().contains('author')) {
-      final authors = <String>[];
-      // Look for authors in column 5 (المؤلفين)
+      final authors = <String>{};
+
+      // Extract authors ONLY from Key config (column F, index 5) - More efficient!
       for (int i = 1; i < keyConfig.length; i++) {
         if (keyConfig[i].length > 5) {
-          final author = keyConfig[i][5].trim();
-          if (author.isNotEmpty) {
+          final author =
+              keyConfig[i][5].trim(); // Column F (index 5) in Key sheet
+          if (author.isNotEmpty &&
+              author != 'لا يوجد' &&
+              author != 'N/A' &&
+              author != '-' &&
+              author != 'المؤلفين') {
+            // Exclude header
             authors.add(author);
           }
         }
       }
+
       print(
-          '🎯 Found ${authors.length} authors from key: ${authors.join(', ')}');
-      return {'type': 'autocomplete', 'options': authors};
+          '📚 Found ${authors.length} authors from Key sheet only: ${authors.take(3).join(', ')}${authors.length > 3 ? '...' : ''}');
+
+      return {
+        'type': 'autocomplete',
+        'options': authors.toList()..sort(),
+      };
     }
 
-    return {'type': 'none', 'options': <String>[]};
+    // For other columns, return regular text field
+    return {
+      'type': 'text',
+      'options': <String>[],
+    };
   }
 
   // Determine field type based on header and data (fallback logic)
@@ -391,13 +374,15 @@ class DynamicSheetsService {
     String authorName = '';
     String briefDescription = '';
 
+    String volumeNumber = '';
+
     // Map form data to book fields based on column headers
     for (final column in _currentStructure!.columns) {
       final value = formData[column.header] ?? '';
 
       if (column.header.contains('موقع') ||
           column.header.toLowerCase().contains('location')) {
-        libraryLocation += (libraryLocation.isEmpty ? '' : ' ') + value;
+        libraryLocation += (libraryLocation.isEmpty ? '' : '') + value;
       } else if (column.header.contains('تصنيف') ||
           column.header.toLowerCase().contains('category')) {
         category = value;
@@ -407,6 +392,9 @@ class DynamicSheetsService {
       } else if (column.header.contains('مؤلف') ||
           column.header.toLowerCase().contains('author')) {
         authorName = value;
+      } else if (column.header.contains('رقم الجزء') ||
+          column.header.toLowerCase().contains('volume')) {
+        volumeNumber = value;
       } else if (column.header.contains('تعريف') ||
           column.header.toLowerCase().contains('description')) {
         briefDescription = value;
@@ -419,6 +407,7 @@ class DynamicSheetsService {
       bookName: bookName,
       authorName: authorName,
       briefDescription: briefDescription,
+      volumeNumber: volumeNumber.isNotEmpty ? volumeNumber : null,
     );
   }
 
@@ -445,6 +434,9 @@ class DynamicSheetsService {
       } else if (column.header.contains('مؤلف') ||
           column.header.toLowerCase().contains('author')) {
         row[index] = book.authorName;
+      } else if (column.header.contains('رقم الجزء') ||
+          column.header.toLowerCase().contains('volume')) {
+        row[index] = book.volumeNumber ?? '';
       } else if (column.header.contains('تعريف') ||
           column.header.toLowerCase().contains('description')) {
         row[index] = book.briefDescription;
@@ -487,5 +479,80 @@ class DynamicSheetsService {
     }
 
     return locations.toList();
+  }
+
+  // Get all authors from the data
+  List<String> getAuthors() {
+    final authorColumn = getColumnByHeader('مؤلف');
+    if (authorColumn != null) {
+      return authorColumn.options;
+    }
+
+    // Fallback to analyzing dropdown options
+    final authors = _currentStructure?.dropdownOptions.entries
+            .where((entry) =>
+                entry.key.contains('مؤلف') ||
+                entry.key.toLowerCase().contains('author'))
+            .expand((entry) => entry.value)
+            .toList() ??
+        [];
+
+    return authors;
+  }
+
+  // Update structure with additional authors from local data
+  void updateAuthorsFromLocalData(List<String> localAuthors) {
+    if (_currentStructure == null) return;
+
+    // Find author column
+    final authorColumn = _currentStructure!.columns.firstWhere(
+      (col) =>
+          col.header.contains('مؤلف') ||
+          col.header.toLowerCase().contains('author'),
+      orElse: () => throw Exception('Author column not found'),
+    );
+
+    // Combine existing authors with local authors
+    final existingAuthors = Set<String>.from(authorColumn.options);
+    final allAuthors = <String>{};
+
+    // Add existing authors
+    allAuthors.addAll(existingAuthors);
+
+    // Add local authors (filtered)
+    for (final author in localAuthors) {
+      final cleanAuthor = author.trim();
+      if (cleanAuthor.isNotEmpty &&
+          cleanAuthor != 'لا يوجد' &&
+          cleanAuthor != 'N/A' &&
+          cleanAuthor != '-') {
+        allAuthors.add(cleanAuthor);
+      }
+    }
+
+    // Update the column options
+    final updatedColumns = _currentStructure!.columns.map((col) {
+      if (col.header.contains('مؤلف') ||
+          col.header.toLowerCase().contains('author')) {
+        return ColumnMapping(
+          header: col.header,
+          index: col.index,
+          fieldType: col.fieldType,
+          options: allAuthors.toList()..sort(),
+        );
+      }
+      return col;
+    }).toList();
+
+    // Update the structure
+    _currentStructure = SheetsStructure(
+      columns: updatedColumns,
+      dropdownOptions: {
+        ..._currentStructure!.dropdownOptions,
+        authorColumn.header: allAuthors,
+      },
+    );
+
+    print('📚 Updated authors list with ${allAuthors.length} total authors');
   }
 }

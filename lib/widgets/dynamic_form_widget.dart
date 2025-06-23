@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../services/dynamic_sheets_service.dart';
 import '../widgets/arabic_form_field.dart';
+import '../services/local_database_service.dart';
 
 class DynamicFormWidget extends StatefulWidget {
   final SheetsStructure structure;
@@ -167,92 +168,138 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
               color: AppConstants.hintColor.withOpacity(0.3),
             ),
           ),
-          child: Autocomplete<String>(
-            optionsBuilder: (TextEditingValue textEditingValue) {
-              if (textEditingValue.text.isEmpty) {
-                return const Iterable<String>.empty();
-              }
-              return column.options.where((String option) {
-                return option
-                        .toLowerCase()
-                        .contains(textEditingValue.text.toLowerCase()) ||
-                    option.contains(textEditingValue.text);
-              });
-            },
-            onSelected: (String selection) {
-              _controllers[column.header]!.text = selection;
-            },
-            fieldViewBuilder: (BuildContext context,
-                TextEditingController fieldController,
-                FocusNode fieldFocusNode,
-                VoidCallback onFieldSubmitted) {
-              // Use our controller instead of the autocomplete's
-              fieldController.text = _controllers[column.header]!.text;
-              fieldController.addListener(() {
-                _controllers[column.header]!.text = fieldController.text;
-              });
+          child: FutureBuilder<List<String>>(
+            future: _getAutocompleteOptions(column),
+            builder: (context, snapshot) {
+              final options = snapshot.data ?? column.options;
 
-              return TextFormField(
-                controller: fieldController,
-                focusNode: fieldFocusNode,
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  hintText: 'اكتب أو اختر ${column.header}',
-                  hintStyle: GoogleFonts.cairo(
-                    color: AppConstants.hintColor,
-                  ),
-                  suffixIcon: Icon(
-                    Icons.arrow_drop_down,
-                    color: AppConstants.hintColor,
-                  ),
-                ),
-                style: GoogleFonts.cairo(),
-                validator: _isRequiredField(column.header)
-                    ? (value) => value == null || value.isEmpty
-                        ? 'يرجى إدخال ${column.header}'
-                        : null
-                    : null,
-              );
-            },
-            optionsViewBuilder: (BuildContext context,
-                AutocompleteOnSelected<String> onSelected,
-                Iterable<String> options) {
-              return Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  elevation: 4.0,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    height: 200,
-                    width: MediaQuery.of(context).size.width - 40,
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: options.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final String option = options.elementAt(index);
-                        return ListTile(
-                          title: Text(
-                            option,
-                            style: GoogleFonts.cairo(),
-                          ),
-                          onTap: () {
-                            onSelected(option);
-                          },
-                        );
-                      },
+              return Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return options.where((String option) {
+                    return option
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()) ||
+                        option.contains(textEditingValue.text);
+                  });
+                },
+                onSelected: (String selection) {
+                  _controllers[column.header]!.text = selection;
+                },
+                fieldViewBuilder: (BuildContext context,
+                    TextEditingController fieldController,
+                    FocusNode fieldFocusNode,
+                    VoidCallback onFieldSubmitted) {
+                  fieldController.text = _controllers[column.header]!.text;
+                  fieldController.addListener(() {
+                    _controllers[column.header]!.text = fieldController.text;
+                  });
+
+                  return TextFormField(
+                    controller: fieldController,
+                    focusNode: fieldFocusNode,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      hintText: 'اكتب أو اختر ${column.header}',
+                      hintStyle: GoogleFonts.cairo(
+                        color: AppConstants.hintColor,
+                      ),
+                      suffixIcon: Icon(
+                        Icons.arrow_drop_down,
+                        color: AppConstants.hintColor,
+                      ),
                     ),
-                  ),
-                ),
+                    style: GoogleFonts.cairo(),
+                    validator: _isRequiredField(column.header)
+                        ? (value) => value == null || value.isEmpty
+                            ? 'يرجى إدخال ${column.header}'
+                            : null
+                        : null,
+                  );
+                },
+                optionsViewBuilder: (BuildContext context,
+                    AutocompleteOnSelected<String> onSelected,
+                    Iterable<String> options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        height: 200,
+                        width: MediaQuery.of(context).size.width - 40,
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: options.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            final String option = options.elementAt(index);
+                            return ListTile(
+                              title: Text(
+                                option,
+                                style: GoogleFonts.cairo(),
+                              ),
+                              onTap: () {
+                                onSelected(option);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
         ),
       ],
     );
+  }
+
+  // Get autocomplete options for a column, with fallback to local data for authors
+  Future<List<String>> _getAutocompleteOptions(ColumnMapping column) async {
+    // If it's an author column and has few options, try to get from local data
+    if ((column.header.contains('مؤلف') ||
+            column.header.toLowerCase().contains('author')) &&
+        column.options.length < 5) {
+      try {
+        // Import the services at the top of the file
+        final localDbService = LocalDatabaseService();
+        final stats = await localDbService.getStatistics();
+        final authorsData = stats['authors'] as List? ?? [];
+
+        final localAuthors = <String>{};
+        for (final author in authorsData) {
+          if (author is Map<String, dynamic>) {
+            final name = author['author_name']?.toString() ?? '';
+            if (name.trim().isNotEmpty &&
+                name != 'لا يوجد' &&
+                name != 'N/A' &&
+                name != '-') {
+              localAuthors.add(name.trim());
+            }
+          }
+        }
+
+        // Combine existing options with local authors
+        final allAuthors = <String>{};
+        allAuthors.addAll(column.options);
+        allAuthors.addAll(localAuthors);
+
+        return allAuthors.toList()..sort();
+      } catch (e) {
+        print('⚠️ Failed to get local authors: $e');
+        return column.options;
+      }
+    }
+
+    return column.options;
   }
 
   Widget _buildLocationCompoundField(ColumnMapping column) {

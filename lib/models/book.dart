@@ -5,6 +5,7 @@ class Book {
   final String libraryLocation;
   final String briefDescription;
   final String? barcode;
+  final String? volumeNumber;
 
   Book({
     required this.bookName,
@@ -13,18 +14,35 @@ class Book {
     required this.libraryLocation,
     required this.briefDescription,
     this.barcode,
+    this.volumeNumber,
   });
 
-  // Convert to list for Google Sheets API
+  // Convert to list for Google Sheets API - matches exact structure
   List<String> toSheetRow() {
+    // Parse location into Row and Column if format is like "A1", "B2", etc.
+    String locationRow = '';
+    String locationColumn = '';
+
+    if (libraryLocation.isNotEmpty) {
+      // Try to parse location like "A1" or "B2"
+      final match = RegExp(r'^([A-Z])(\d+)$').firstMatch(libraryLocation);
+      if (match != null) {
+        locationRow = match.group(1)!;
+        locationColumn = match.group(2)!;
+      } else {
+        // If not in expected format, put the whole location in Row
+        locationRow = libraryLocation;
+      }
+    }
+
     return [
-      libraryLocation, // Column A: Main location
-      '', // Column B: Location details
+      locationRow, // Column A: Library Location (Row)
+      locationColumn, // Column B: Library Location (Column)
       category, // Column C: Category
       bookName, // Column D: Book Name
       authorName, // Column E: Author Name
-      '', // Column F: Part Number
-      // Note: Column G (Brief Description) missing in data
+      volumeNumber ?? '', // Column F: Volume Number
+      briefDescription, // Column G: Brief Description
     ];
   }
 
@@ -71,17 +89,10 @@ class Book {
     return null;
   }
 
-  // Convert to Google Sheets row format (6 columns for data rows)
+  // Convert to Google Sheets row format - DEPRECATED: Use toSheetRow() instead
+  @deprecated
   List<String> toGoogleSheetsRow() {
-    return [
-      libraryLocation, // Column A: Main location (B, A, etc.)
-      '', // Column B: Location details (5, etc.) - will be filled by user
-      category, // Column C: Category
-      bookName, // Column D: Book Name
-      authorName, // Column E: Author Name
-      '', // Column F: Part Number - will be filled by user
-      // Note: Column G (Brief Description) is missing in actual data rows
-    ];
+    return toSheetRow(); // Use the updated method
   }
 
   // Convert to Map for local database
@@ -93,6 +104,7 @@ class Book {
       'library_location': libraryLocation,
       'brief_description': briefDescription,
       'barcode': barcode,
+      'volume_number': volumeNumber,
     };
   }
 
@@ -105,6 +117,7 @@ class Book {
       libraryLocation: map['library_location'] ?? '',
       briefDescription: map['brief_description'] ?? '',
       barcode: map['barcode'],
+      volumeNumber: map['volume_number'],
     );
   }
 
@@ -116,6 +129,7 @@ class Book {
     String? libraryLocation,
     String? briefDescription,
     String? barcode,
+    String? volumeNumber,
   }) {
     return Book(
       bookName: bookName ?? this.bookName,
@@ -124,6 +138,7 @@ class Book {
       libraryLocation: libraryLocation ?? this.libraryLocation,
       briefDescription: briefDescription ?? this.briefDescription,
       barcode: barcode ?? this.barcode,
+      volumeNumber: volumeNumber ?? this.volumeNumber,
     );
   }
 }
