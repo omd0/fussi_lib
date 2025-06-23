@@ -2,6 +2,7 @@
     "name": "مكتبة بيت الفصي الرقمية - Fussi Library App",
     "short_name": "Fussi Library",
     "description": "تطبيق ذكي لإدارة مكتبة بيت الفصي مع دعم كامل للغة العربية",
+    "version": "1.0.1",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#1E3A8A",
