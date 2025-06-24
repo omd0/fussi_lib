@@ -138,12 +138,14 @@ Future<void> _testKeySheet(SheetsApi sheetsApi) async {
   try {
     // Try different possible Key sheet names and ranges
     final possibleRanges = [
+      'مفتاح!A:ZZ', // Maximum range first
+      'مفتاح!A:Z',
+      'Key!A:ZZ',
+      'Key!A:Z',
       'مفتاح!A:H',
       'Key!A:H',
-      'مفتاح!A:Z',
-      'Key!A:Z',
-      'مفتاح!A1:H20',
-      'Key!A1:H20'
+      'مفتاح!A1:ZZ20',
+      'Key!A1:ZZ20'
     ];
 
     dynamic response;

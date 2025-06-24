@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
-import '../services/dynamic_sheets_service.dart';
+import '../models/book.dart';
+import '../utils/arabic_text_utils.dart';
 import '../widgets/arabic_form_field.dart';
 import '../services/local_database_service.dart';
 
 class DynamicFormWidget extends StatefulWidget {
-  final SheetsStructure structure;
+  final FormStructure structure;
   final Function(Map<String, String>) onFormSubmit;
   final bool isLoading;
   final bool lockModeEnabled;
@@ -44,34 +45,40 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
   }
 
   void _initializeControllers() {
-    for (final column in widget.structure.columns) {
-      if (column.fieldType == 'text' || column.fieldType == 'autocomplete') {
+    for (final field in widget.structure.fields) {
+      if (field.type == FieldType.text ||
+          field.type == FieldType.autocomplete ||
+          field.type == FieldType.textarea ||
+          field.type == FieldType.number ||
+          field.type == FieldType.email ||
+          field.type == FieldType.phone ||
+          field.type == FieldType.url ||
+          field.type == FieldType.password ||
+          field.type == FieldType.checkbox) {
         final controller = TextEditingController();
         // Set locked values if available
-        if (widget.lockedValues.containsKey(column.header)) {
-          controller.text = widget.lockedValues[column.header]!;
+        if (widget.lockedValues.containsKey(field.name)) {
+          controller.text = widget.lockedValues[field.name]!;
         }
-        _controllers[column.header] = controller;
+        _controllers[field.name] = controller;
       }
     }
 
     // Set locked dropdown values
     for (final entry in widget.lockedValues.entries) {
-      final column = widget.structure.columns.firstWhere(
-        (col) => col.header == entry.key,
-        orElse: () =>
-            ColumnMapping(header: '', index: -1, fieldType: '', options: []),
-      );
-      if (column.fieldType == 'dropdown') {
-        _dropdownValues[entry.key] = entry.value;
-      } else if (column.fieldType == 'location_compound') {
-        // Parse compound location (e.g., "B5" -> row "B", column "5")
-        final value = entry.value;
-        if (value.length >= 2) {
-          final row = value.substring(0, 1);
-          final col = value.substring(1);
-          _locationRows[entry.key] = row;
-          _locationColumns[entry.key] = col;
+      final field = widget.structure.getField(entry.key);
+      if (field != null) {
+        if (field.type == FieldType.dropdown) {
+          _dropdownValues[entry.key] = entry.value;
+        } else if (field.type == FieldType.locationCompound) {
+          // Parse compound location (e.g., "B5" -> row "B", column "5")
+          final value = entry.value;
+          if (value.length >= 2) {
+            final row = value.substring(0, 1);
+            final col = value.substring(1);
+            _locationRows[entry.key] = row;
+            _locationColumns[entry.key] = col;
+          }
         }
       }
     }
@@ -85,24 +92,65 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     super.dispose();
   }
 
-  Widget _buildFormField(ColumnMapping column) {
-    final isLockableField = _isLockableField(column.header);
-    final isFieldLocked = widget.lockedFields[column.header] ?? false;
+  Widget _buildFormField(FieldConfig field) {
+    final isLockableField = _isLockableField(field.name);
+    final isFieldLocked = widget.lockedFields[field.name] ?? false;
 
-    Widget field;
-    switch (column.fieldType) {
-      case 'dropdown':
-        field = _buildDropdownField(column);
+    Widget fieldWidget;
+    switch (field.type) {
+      case FieldType.dropdown:
+        fieldWidget = _buildDropdownField(field);
         break;
-      case 'location_compound':
-        field = _buildLocationCompoundField(column);
+      case FieldType.locationCompound:
+        fieldWidget = _buildLocationCompoundField(field);
         break;
-      case 'autocomplete':
-        field = _buildAutocompleteField(column);
+      case FieldType.autocomplete:
+        fieldWidget = _buildAutocompleteField(field);
         break;
-      case 'text':
-      default:
-        field = _buildTextField(column);
+      case FieldType.text:
+        // Check for features to determine text field type
+        if (field.hasFeature(FieldFeature.md)) {
+          fieldWidget = _buildTextFieldWithMarkdown(field);
+        } else if (field.hasFeature(FieldFeature.long)) {
+          fieldWidget = _buildTextFieldMultiline(field);
+        } else {
+          fieldWidget = _buildTextField(field);
+        }
+        break;
+      case FieldType.textarea:
+        fieldWidget = _buildTextFieldMultiline(field);
+        break;
+      case FieldType.number:
+        fieldWidget = _buildNumberField(field);
+        break;
+      case FieldType.email:
+        fieldWidget = _buildEmailField(field);
+        break;
+      case FieldType.phone:
+        fieldWidget = _buildPhoneField(field);
+        break;
+      case FieldType.url:
+        fieldWidget = _buildUrlField(field);
+        break;
+      case FieldType.password:
+        fieldWidget = _buildPasswordField(field);
+        break;
+      case FieldType.checkbox:
+        fieldWidget = _buildCheckboxField(field);
+        break;
+      case FieldType.date:
+      case FieldType.time:
+      case FieldType.datetime:
+      case FieldType.radio:
+      case FieldType.slider:
+      case FieldType.rating:
+      case FieldType.color:
+      case FieldType.file:
+      case FieldType.image:
+      case FieldType.barcode:
+      case FieldType.qrcode:
+        // For advanced field types not yet implemented, fall back to text field
+        fieldWidget = _buildTextField(field);
         break;
     }
 
@@ -112,25 +160,25 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         children: [
           Row(
             children: [
-              Expanded(child: field),
+              Expanded(child: fieldWidget),
               const SizedBox(width: 8),
-              _buildLockButton(column.header, isFieldLocked),
+              _buildLockButton(field.name, isFieldLocked),
             ],
           ),
-          if (isFieldLocked) _buildLockedIndicator(column.header),
+          if (isFieldLocked) _buildLockedIndicator(field.name),
         ],
       );
     }
 
-    return field;
+    return fieldWidget;
   }
 
-  Widget _buildTextField(ColumnMapping column) {
+  Widget _buildTextField(FieldConfig field) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${column.header} ${_isRequiredField(column.header) ? '*' : ''}',
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
           style: GoogleFonts.cairo(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -140,20 +188,108 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         const SizedBox(height: 8),
         ArabicFormField(
           label: '',
-          hint: 'أدخل ${column.header}',
-          controller: _controllers[column.header]!,
-          isRequired: _isRequiredField(column.header),
+          hint: 'أدخل ${field.displayName}',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
         ),
       ],
     );
   }
 
-  Widget _buildAutocompleteField(ColumnMapping column) {
+  Widget _buildTextFieldWithMarkdown(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+              style: GoogleFonts.cairo(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppConstants.textColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppConstants.secondaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'تنسيق',
+                style: GoogleFonts.cairo(
+                  fontSize: 10,
+                  color: AppConstants.secondaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ArabicFormField(
+          label: '',
+          hint: 'أدخل ${field.displayName} (يدعم التنسيق)',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
+          maxLines: 3,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextFieldMultiline(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+              style: GoogleFonts.cairo(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppConstants.textColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'نص طويل',
+                style: GoogleFonts.cairo(
+                  fontSize: 10,
+                  color: AppConstants.primaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ArabicFormField(
+          label: '',
+          hint: 'أدخل ${field.displayName}',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
+          maxLines: 5,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNumberField(FieldConfig field) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${column.header} ${_isRequiredField(column.header) ? '*' : ''}',
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
           style: GoogleFonts.cairo(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -161,40 +297,312 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           ),
         ),
         const SizedBox(height: 8),
+        ArabicFormField(
+          label: '',
+          hint: 'أدخل ${field.displayName}',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
+          keyboardType: TextInputType.number,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmailField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ArabicFormField(
+          label: '',
+          hint: 'أدخل ${field.displayName}',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
+          keyboardType: TextInputType.emailAddress,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ArabicFormField(
+          label: '',
+          hint: 'أدخل ${field.displayName}',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
+          keyboardType: TextInputType.phone,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUrlField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ArabicFormField(
+          label: '',
+          hint: 'أدخل ${field.displayName}',
+          controller: _controllers[field.name]!,
+          isRequired: _isRequiredField(field.name),
+          keyboardType: TextInputType.url,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: TextFormField(
+            controller: _controllers[field.name]!,
+            obscureText: true,
+            textAlign: TextAlign.right,
+            style: GoogleFonts.cairo(
+              fontSize: 16,
+              color: AppConstants.textColor,
+            ),
+            decoration: InputDecoration(
+              hintText: 'أدخل ${field.displayName}',
+              hintStyle: GoogleFonts.cairo(
+                color: AppConstants.hintColor,
+              ),
+              filled: true,
+              fillColor: AppConstants.cardColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                borderSide: BorderSide(
+                  color: AppConstants.hintColor.withOpacity(0.3),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                borderSide: BorderSide(
+                  color: AppConstants.hintColor.withOpacity(0.3),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                borderSide: const BorderSide(
+                  color: AppConstants.primaryColor,
+                  width: 2,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+            ),
+            validator: _isRequiredField(field.name)
+                ? (value) => value == null || value.isEmpty
+                    ? 'يرجى إدخال ${field.displayName}'
+                    : null
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCheckboxField(FieldConfig field) {
+    // For checkbox fields, we need to track boolean state separately
+    final checkboxValues = <String, bool>{};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        StatefulBuilder(
+          builder: (context, setState) {
+            final isChecked = checkboxValues[field.name] ?? false;
+            return CheckboxListTile(
+              title: Text(
+                field.displayName,
+                style: GoogleFonts.cairo(),
+              ),
+              value: isChecked,
+              onChanged: (bool? value) {
+                setState(() {
+                  checkboxValues[field.name] = value ?? false;
+                  // Update the text controller to store the boolean value as string
+                  _controllers[field.name]!.text = (value ?? false).toString();
+                });
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAutocompleteField(FieldConfig field) {
+    final isDynamicField = field.isDynamic;
+
+    // Debug print
+    print(
+        '🎯 Building autocomplete field for: "${field.displayName}" with ${field.options.length} options');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+              style: GoogleFonts.cairo(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppConstants.textColor,
+              ),
+            ),
+            if (isDynamicField) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppConstants.primaryColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  'تم الكشف تلقائياً',
+                  style: GoogleFonts.cairo(
+                    fontSize: 10,
+                    color: AppConstants.primaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppConstants.hintColor.withOpacity(0.3),
+              color: isDynamicField
+                  ? AppConstants.primaryColor.withOpacity(0.4)
+                  : AppConstants.hintColor.withOpacity(0.3),
             ),
           ),
           child: FutureBuilder<List<String>>(
-            future: _getAutocompleteOptions(column),
+            future: _getAutocompleteOptions(field),
             builder: (context, snapshot) {
-              final options = snapshot.data ?? column.options;
+              final options = snapshot.data ?? field.options;
+              final isLoading =
+                  snapshot.connectionState == ConnectionState.waiting;
+
+              // Show loading indicator when data is loading
+              if (isLoading && options.isEmpty) {
+                return Container(
+                  height: 60,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppConstants.primaryColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'جاري تحميل الخيارات...',
+                        style: GoogleFonts.cairo(
+                          color: AppConstants.hintColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
               return Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
                   if (textEditingValue.text.isEmpty) {
-                    return const Iterable<String>.empty();
+                    // Show top 5 options when field is empty for better UX
+                    return options.take(5);
                   }
+
+                  // Enhanced Arabic text matching with fuzzy search
                   return options.where((String option) {
-                    return option
-                            .toLowerCase()
-                            .contains(textEditingValue.text.toLowerCase()) ||
-                        option.contains(textEditingValue.text);
+                    return ArabicTextUtils.arabicFuzzyMatch(
+                        option, textEditingValue.text);
                   });
                 },
                 onSelected: (String selection) {
-                  _controllers[column.header]!.text = selection;
+                  _controllers[field.name]!.text = selection;
                 },
                 fieldViewBuilder: (BuildContext context,
                     TextEditingController fieldController,
                     FocusNode fieldFocusNode,
                     VoidCallback onFieldSubmitted) {
-                  fieldController.text = _controllers[column.header]!.text;
+                  // Only set initial value if not already set to avoid cursor issues
+                  if (fieldController.text != _controllers[field.name]!.text) {
+                    fieldController.text = _controllers[field.name]!.text;
+                  }
+
                   fieldController.addListener(() {
-                    _controllers[column.header]!.text = fieldController.text;
+                    _controllers[field.name]!.text = fieldController.text;
                   });
 
                   return TextFormField(
@@ -206,19 +614,33 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      hintText: 'اكتب أو اختر ${column.header}',
+                      hintText: 'اكتب أو اختر ${field.displayName}',
                       hintStyle: GoogleFonts.cairo(
                         color: AppConstants.hintColor,
                       ),
-                      suffixIcon: Icon(
-                        Icons.arrow_drop_down,
-                        color: AppConstants.hintColor,
-                      ),
+                      suffixIcon: isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppConstants.primaryColor,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              Icons.arrow_drop_down,
+                              color: AppConstants.hintColor,
+                            ),
                     ),
                     style: GoogleFonts.cairo(),
-                    validator: _isRequiredField(column.header)
+                    validator: _isRequiredField(field.name)
                         ? (value) => value == null || value.isEmpty
-                            ? 'يرجى إدخال ${column.header}'
+                            ? 'يرجى إدخال ${field.displayName}'
                             : null
                         : null,
                   );
@@ -231,25 +653,39 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                     child: Material(
                       elevation: 4.0,
                       borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        height: 200,
-                        width: MediaQuery.of(context).size.width - 40,
-                        child: ListView.builder(
-                          padding: EdgeInsets.zero,
-                          itemCount: options.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            final String option = options.elementAt(index);
-                            return ListTile(
-                              title: Text(
-                                option,
-                                style: GoogleFonts.cairo(),
-                              ),
-                              onTap: () {
-                                onSelected(option);
-                              },
-                            );
-                          },
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: 200,
+                          maxWidth: MediaQuery.of(context).size.width - 40,
                         ),
+                        child: options.isEmpty
+                            ? Container(
+                                padding: const EdgeInsets.all(16),
+                                child: Text(
+                                  'لا توجد خيارات متاحة',
+                                  style: GoogleFonts.cairo(
+                                    color: AppConstants.hintColor,
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final String option =
+                                      options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(
+                                      option,
+                                      style: GoogleFonts.cairo(),
+                                    ),
+                                    onTap: () {
+                                      onSelected(option);
+                                    },
+                                  );
+                                },
+                              ),
                       ),
                     ),
                   );
@@ -262,60 +698,71 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     );
   }
 
-  // Get autocomplete options for a column, with fallback to local data for authors
-  Future<List<String>> _getAutocompleteOptions(ColumnMapping column) async {
-    // If it's an author column and has few options, try to get from local data
-    if ((column.header.contains('مؤلف') ||
-            column.header.toLowerCase().contains('author')) &&
-        column.options.length < 5) {
+  // Get autocomplete options for a field, with enhanced fallback logic
+  Future<List<String>> _getAutocompleteOptions(FieldConfig field) async {
+    final options = <String>{};
+
+    // Always start with the field's predefined options
+    options.addAll(field.options);
+
+    // Special handling for author columns - get from multiple sources
+    if (ArabicTextUtils.isAuthorColumn(field.name)) {
       try {
-        // Import the services at the top of the file
+        // Get authors from local database
         final localDbService = LocalDatabaseService();
         final stats = await localDbService.getStatistics();
         final authorsData = stats['authors'] as List? ?? [];
 
-        final localAuthors = <String>{};
         for (final author in authorsData) {
           if (author is Map<String, dynamic>) {
             final name = author['author_name']?.toString() ?? '';
-            if (name.trim().isNotEmpty &&
-                name != 'لا يوجد' &&
-                name != 'N/A' &&
-                name != '-') {
-              localAuthors.add(name.trim());
+            if (ArabicTextUtils.isValidAuthorName(name)) {
+              options.add(name.trim());
             }
           }
         }
 
-        // Combine existing options with local authors
-        final allAuthors = <String>{};
-        allAuthors.addAll(column.options);
-        allAuthors.addAll(localAuthors);
-
-        return allAuthors.toList()..sort();
+        print(
+            '📚 Author autocomplete: ${options.length} total options (${field.options.length} from key sheet)');
       } catch (e) {
-        print('⚠️ Failed to get local authors: $e');
-        return column.options;
+        print('⚠️ Failed to get local authors for autocomplete: $e');
       }
     }
 
-    return column.options;
+    // For dynamic fields detected from key sheet, ensure we have good options
+    final isDynamicField = field.isDynamic;
+    if (isDynamicField) {
+      print(
+          '🎯 Dynamic field "${field.displayName}" has ${options.length} autocomplete options');
+
+      // If this is a dynamic restriction column like "ممنوع", add common values
+      if (ArabicTextUtils.isRestrictionColumn(field.name)) {
+        options.addAll(ArabicTextUtils.getCommonRestrictionValues());
+      }
+    }
+
+    final finalOptions = options.toList()..sort();
+
+    // Ensure we have a reasonable number of options for autocomplete
+    if (finalOptions.length < 3 && field.type == FieldType.autocomplete) {
+      print(
+          '⚠️ Few options for autocomplete field "${field.displayName}": ${finalOptions.length}');
+    }
+
+    return finalOptions;
   }
 
-  Widget _buildLocationCompoundField(ColumnMapping column) {
-    final rowOptions =
-        widget.structure.dropdownOptions['${column.header}_rows']?.toList() ??
-            [];
-    final columnOptions = widget
-            .structure.dropdownOptions['${column.header}_columns']
-            ?.toList() ??
-        [];
+  Widget _buildLocationCompoundField(FieldConfig field) {
+    // For location compound fields, get location data from the structure
+    final locationData = widget.structure.locationData;
+    final rowOptions = locationData?.rows ?? [];
+    final columnOptions = locationData?.columns ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${column.header} ${_isRequiredField(column.header) ? '*' : ''}',
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
           style: GoogleFonts.cairo(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -335,7 +782,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                   ),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: _locationRows[column.header],
+                  value: _locationRows[field.name],
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
@@ -349,7 +796,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                       color: AppConstants.hintColor,
                     ),
                   ),
-                  validator: _isRequiredField(column.header)
+                  validator: _isRequiredField(field.name)
                       ? (value) =>
                           value == null || value.isEmpty ? 'اختر الصف' : null
                       : null,
@@ -364,7 +811,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                   }).toList(),
                   onChanged: (value) {
                     setState(() {
-                      _locationRows[column.header] = value;
+                      _locationRows[field.name] = value;
                     });
                   },
                 ),
@@ -381,7 +828,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                   ),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: _locationColumns[column.header],
+                  value: _locationColumns[field.name],
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
@@ -395,7 +842,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                       color: AppConstants.hintColor,
                     ),
                   ),
-                  validator: _isRequiredField(column.header)
+                  validator: _isRequiredField(field.name)
                       ? (value) =>
                           value == null || value.isEmpty ? 'اختر العامود' : null
                       : null,
@@ -410,7 +857,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                   }).toList(),
                   onChanged: (value) {
                     setState(() {
-                      _locationColumns[column.header] = value;
+                      _locationColumns[field.name] = value;
                     });
                   },
                 ),
@@ -419,12 +866,12 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           ],
         ),
         // Show combined location preview
-        if (_locationRows[column.header] != null &&
-            _locationColumns[column.header] != null)
+        if (_locationRows[field.name] != null &&
+            _locationColumns[field.name] != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'الموقع: ${_locationRows[column.header]}${_locationColumns[column.header]}',
+              'الموقع: ${_locationRows[field.name]}${_locationColumns[field.name]}',
               style: GoogleFonts.cairo(
                 fontSize: 12,
                 color: AppConstants.primaryColor,
@@ -436,28 +883,58 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     );
   }
 
-  Widget _buildDropdownField(ColumnMapping column) {
+  Widget _buildDropdownField(FieldConfig field) {
+    final isDynamicField = field.isDynamic;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${column.header} ${_isRequiredField(column.header) ? '*' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppConstants.textColor,
-          ),
+        Row(
+          children: [
+            Text(
+              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+              style: GoogleFonts.cairo(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppConstants.textColor,
+              ),
+            ),
+            if (isDynamicField) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppConstants.primaryColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  'تم الكشف تلقائياً',
+                  style: GoogleFonts.cairo(
+                    fontSize: 10,
+                    color: AppConstants.primaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppConstants.hintColor.withOpacity(0.3),
+              color: isDynamicField
+                  ? AppConstants.primaryColor.withOpacity(0.4)
+                  : AppConstants.hintColor.withOpacity(0.3),
             ),
           ),
           child: DropdownButtonFormField<String>(
-            value: _dropdownValues[column.header],
+            value: _dropdownValues[field.name],
             decoration: const InputDecoration(
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
@@ -466,40 +943,41 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
               ),
             ),
             hint: Text(
-              'اختر ${column.header}',
+              'اختر ${field.displayName}',
               style: GoogleFonts.cairo(
                 color: AppConstants.hintColor,
               ),
             ),
-            validator: _isRequiredField(column.header)
+            validator: _isRequiredField(field.name)
                 ? (value) => value == null || value.isEmpty
-                    ? 'يرجى اختيار ${column.header}'
+                    ? 'يرجى اختيار ${field.displayName}'
                     : null
                 : null,
             items: [
-              // Add "Other" option for flexibility
-              DropdownMenuItem<String>(
-                value: '__other__',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.add,
-                      size: 16,
-                      color: AppConstants.primaryColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'أخرى (إضافة جديد)',
-                      style: GoogleFonts.cairo(
+              // Add "Other" option if field has "plus" feature
+              if (field.hasFeature(FieldFeature.plus))
+                DropdownMenuItem<String>(
+                  value: '__other__',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.add,
+                        size: 16,
                         color: AppConstants.primaryColor,
-                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'أخرى (إضافة جديد)',
+                        style: GoogleFonts.cairo(
+                          color: AppConstants.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               // Add existing options
-              ...column.options.map((option) {
+              ...field.options.map((option) {
                 return DropdownMenuItem<String>(
                   value: option,
                   child: Text(
@@ -512,9 +990,9 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
             onChanged: (value) {
               setState(() {
                 if (value == '__other__') {
-                  _showAddNewOptionDialog(column);
+                  _showAddNewOptionDialog(field);
                 } else {
-                  _dropdownValues[column.header] = value;
+                  _dropdownValues[field.name] = value;
                 }
               });
             },
@@ -524,7 +1002,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     );
   }
 
-  void _showAddNewOptionDialog(ColumnMapping column) {
+  void _showAddNewOptionDialog(FieldConfig field) {
     final controller = TextEditingController();
 
     showDialog(
@@ -533,14 +1011,14 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           title: Text(
-            'إضافة ${column.header} جديد',
+            'إضافة ${field.displayName} جديد',
             style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'أدخل قيمة جديدة لـ ${column.header}:',
+                'أدخل قيمة جديدة لـ ${field.displayName}:',
                 style: GoogleFonts.cairo(),
               ),
               const SizedBox(height: 16),
@@ -569,8 +1047,9 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                 final newValue = controller.text.trim();
                 if (newValue.isNotEmpty) {
                   setState(() {
-                    column.options.add(newValue);
-                    _dropdownValues[column.header] = newValue;
+                    // Add to field options (note: this modifies the field directly)
+                    field.options.add(newValue);
+                    _dropdownValues[field.name] = newValue;
                   });
                 }
                 Navigator.pop(context);
@@ -673,12 +1152,12 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
       }
 
       // Collect compound location data
-      for (final column in widget.structure.columns) {
-        if (column.fieldType == 'location_compound') {
-          final row = _locationRows[column.header];
-          final col = _locationColumns[column.header];
+      for (final field in widget.structure.fields) {
+        if (field.type == FieldType.locationCompound) {
+          final row = _locationRows[field.name];
+          final col = _locationColumns[field.name];
           if (row != null && col != null) {
-            formData[column.header] = '$row$col'; // e.g., "B5"
+            formData[field.name] = '$row$col'; // e.g., "B5"
           }
         }
       }
@@ -716,12 +1195,12 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
       // Clear location values for unlocked fields
       final newLocationRows = <String, String?>{};
       final newLocationColumns = <String, String?>{};
-      for (final column in widget.structure.columns) {
-        if (column.fieldType == 'location_compound') {
-          final isLocked = widget.lockedFields[column.header] ?? false;
+      for (final field in widget.structure.fields) {
+        if (field.type == FieldType.locationCompound) {
+          final isLocked = widget.lockedFields[field.name] ?? false;
           if (isLocked) {
-            newLocationRows[column.header] = _locationRows[column.header];
-            newLocationColumns[column.header] = _locationColumns[column.header];
+            newLocationRows[field.name] = _locationRows[field.name];
+            newLocationColumns[field.name] = _locationColumns[field.name];
           }
         }
       }
@@ -803,12 +1282,12 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
             ),
             child: Column(
               children: [
-                ...widget.structure.columns.map((column) {
-                  if (column.header.trim().isEmpty) return const SizedBox();
+                ...widget.structure.fields.map((field) {
+                  if (field.name.trim().isEmpty) return const SizedBox();
 
                   return Column(
                     children: [
-                      _buildFormField(column),
+                      _buildFormField(field),
                       const SizedBox(height: 16),
                     ],
                   );

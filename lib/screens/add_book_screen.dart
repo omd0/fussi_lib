@@ -5,6 +5,8 @@ import '../constants/app_constants.dart';
 import '../models/book.dart';
 import '../services/hybrid_library_service.dart';
 import '../services/structure_loader_service.dart';
+import '../services/dynamic_sheets_service.dart';
+import '../utils/arabic_text_utils.dart';
 
 class AddBookScreen extends ConsumerStatefulWidget {
   const AddBookScreen({super.key});
@@ -15,6 +17,7 @@ class AddBookScreen extends ConsumerStatefulWidget {
 
 class _AddBookScreenState extends ConsumerState<AddBookScreen> {
   final HybridLibraryService _hybridService = HybridLibraryService();
+  final DynamicSheetsService _dynamicSheetsService = DynamicSheetsService();
 
   // Form controllers
   final Map<String, TextEditingController> _controllers = {};
@@ -26,6 +29,11 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
   final Map<String, bool> _lockedFields = {};
   final Map<String, String> _lockedValues = {};
   bool _lockModeEnabled = false;
+
+  // Dynamic field detection and options
+  Map<String, List<String>> _dynamicFieldOptions = {};
+  Map<String, String> _fieldTypes = {};
+  bool _dynamicOptionsLoaded = false;
 
   @override
   void initState() {
@@ -43,6 +51,41 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
 
   Future<void> _initializeServices() async {
     await _hybridService.initialize();
+    await _loadDynamicFieldOptions();
+  }
+
+  Future<void> _loadDynamicFieldOptions() async {
+    try {
+      print('🔄 Loading dynamic field options...');
+
+      // Load dynamic structure using new data models
+      final structure = await _dynamicSheetsService.analyzeSheetStructure();
+      if (structure != null) {
+        for (final field in structure.fields) {
+          // Store field type using enum name
+          _fieldTypes[field.name] = field.type.name;
+
+          // Store options for dropdown/autocomplete fields
+          if (field.options.isNotEmpty) {
+            _dynamicFieldOptions[field.name] = field.options;
+          }
+
+          print(
+              '🎯 Field "${field.displayName}": ${field.type.name} (${field.options.length} options)');
+        }
+
+        print('✅ Loaded ${_fieldTypes.length} dynamic field configurations');
+      }
+
+      setState(() {
+        _dynamicOptionsLoaded = true;
+      });
+    } catch (e) {
+      print('⚠️ Failed to load dynamic field options: $e');
+      setState(() {
+        _dynamicOptionsLoaded = true; // Continue with fallback detection
+      });
+    }
   }
 
   void _initializeControllers(Map<String, String> headers) {
@@ -551,16 +594,14 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
         Row(
           children: [
             Expanded(
-              child:
-                  // Special handling for category and location fields
-                  columnKey == 'C' // التصنيف
-                      ? _buildCategoryDropdown(
-                          controller, categoriesAsync, isLocked, columnKey)
-                      : columnKey == 'A' // الموقع في المكتبة
-                          ? _buildLocationField(
-                              controller, locationsAsync, isLocked, columnKey)
-                          : _buildTextFormField(
-                              controller, columnName, isLocked, columnKey),
+              child: _buildDynamicField(
+                controller,
+                columnName,
+                isLocked,
+                columnKey,
+                categoriesAsync,
+                locationsAsync,
+              ),
             ),
             // Lock button aligned with input field
             if (_lockModeEnabled) ...[
@@ -768,6 +809,347 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
         return null;
       },
     );
+  }
+
+  // Dynamic field builder - no hardcoding!
+  Widget _buildDynamicField(
+    TextEditingController controller,
+    String columnName,
+    bool isLocked,
+    String columnKey,
+    AsyncValue<List<String>> categoriesAsync,
+    AsyncValue<Map<String, List<String>>> locationsAsync,
+  ) {
+    // Check if we have dynamic field type information
+    final fieldType = _fieldTypes[columnName];
+    final options = _dynamicFieldOptions[columnName] ?? [];
+
+    print(
+        '🎯 Building field "$columnName" with type: $fieldType (${options.length} options)');
+
+    // Use dynamic field type if available
+    if (_dynamicOptionsLoaded && fieldType != null) {
+      return _buildFieldByType(
+        fieldType,
+        options,
+        controller,
+        columnName,
+        isLocked,
+        true, // isDynamic
+      );
+    }
+
+    // Fallback to intelligent detection
+    return _buildFieldByIntelligentDetection(
+      controller,
+      columnName,
+      isLocked,
+      columnKey,
+      categoriesAsync,
+      locationsAsync,
+    );
+  }
+
+  // Build field by detected type
+  Widget _buildFieldByType(
+    String fieldType,
+    List<String> options,
+    TextEditingController controller,
+    String columnName,
+    bool isLocked,
+    bool isDynamic,
+  ) {
+    switch (fieldType) {
+      case 'autocomplete':
+        return _buildAutocompleteField(
+            controller, columnName, isLocked, options, isDynamic);
+      case 'dropdown':
+        return _buildDropdownField(
+            controller, columnName, isLocked, options, isDynamic);
+      case 'location_compound':
+        // For now, fallback to text - could be enhanced later
+        return _buildTextFormField(controller, columnName, isLocked, '');
+      default:
+        return _buildTextFormField(controller, columnName, isLocked, '');
+    }
+  }
+
+  // Intelligent field detection fallback
+  Widget _buildFieldByIntelligentDetection(
+    TextEditingController controller,
+    String columnName,
+    bool isLocked,
+    String columnKey,
+    AsyncValue<List<String>> categoriesAsync,
+    AsyncValue<Map<String, List<String>>> locationsAsync,
+  ) {
+    // Use Arabic text utilities for intelligent detection
+    if (ArabicTextUtils.isCategoryColumn(columnName)) {
+      return _buildCategoryDropdown(
+          controller, categoriesAsync, isLocked, columnKey);
+    } else if (ArabicTextUtils.isLocationColumn(columnName)) {
+      return _buildLocationField(
+          controller, locationsAsync, isLocked, columnKey);
+    } else if (ArabicTextUtils.isAuthorColumn(columnName)) {
+      // Check if we have author options from dynamic loading
+      final authorOptions = _dynamicFieldOptions.entries
+          .where((entry) => ArabicTextUtils.isAuthorColumn(entry.key))
+          .expand((entry) => entry.value)
+          .toList();
+
+      if (authorOptions.isNotEmpty) {
+        return _buildAutocompleteField(
+            controller, columnName, isLocked, authorOptions, true);
+      }
+      return _buildTextFormField(controller, columnName, isLocked, columnKey);
+    } else if (ArabicTextUtils.isRestrictionColumn(columnName)) {
+      // Check if we have restriction options from dynamic loading
+      final restrictionOptions = _dynamicFieldOptions.entries
+          .where((entry) => ArabicTextUtils.isRestrictionColumn(entry.key))
+          .expand((entry) => entry.value)
+          .toList();
+
+      if (restrictionOptions.isNotEmpty) {
+        return _buildDropdownField(
+            controller, columnName, isLocked, restrictionOptions, true);
+      } else {
+        // Use common restriction values
+        return _buildDropdownField(controller, columnName, isLocked,
+            ArabicTextUtils.getCommonRestrictionValues(), false);
+      }
+    } else {
+      // Default to text field
+      return _buildTextFormField(controller, columnName, isLocked, columnKey);
+    }
+  }
+
+  // Enhanced autocomplete field
+  Widget _buildAutocompleteField(
+    TextEditingController controller,
+    String label,
+    bool isLocked,
+    List<String> options,
+    bool isDynamic,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isDynamic) ...[
+          Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: AppConstants.primaryColor,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'تم الكشف تلقائياً',
+                style: GoogleFonts.cairo(
+                  fontSize: 10,
+                  color: AppConstants.primaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
+        Autocomplete<String>(
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.isEmpty) {
+              return options.take(5);
+            }
+            return options.where((String option) {
+              return ArabicTextUtils.arabicFuzzyMatch(
+                  option, textEditingValue.text);
+            });
+          },
+          onSelected: (String selection) {
+            controller.text = selection;
+          },
+          fieldViewBuilder: (BuildContext context,
+              TextEditingController fieldController,
+              FocusNode fieldFocusNode,
+              VoidCallback onFieldSubmitted) {
+            if (fieldController.text != controller.text) {
+              fieldController.text = controller.text;
+            }
+            fieldController.addListener(() {
+              controller.text = fieldController.text;
+            });
+
+            return TextFormField(
+              controller: fieldController,
+              focusNode: fieldFocusNode,
+              enabled: !isLocked,
+              style: GoogleFonts.cairo(
+                fontSize: 16,
+                color: AppConstants.textColor,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: isLocked
+                    ? AppConstants.primaryColor.withOpacity(0.1)
+                    : AppConstants.backgroundColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                hintText: 'اكتب أو اختر $label',
+                hintStyle: GoogleFonts.cairo(color: AppConstants.hintColor),
+                suffixIcon: Icon(
+                  Icons.arrow_drop_down,
+                  color: AppConstants.hintColor,
+                ),
+                prefixIcon: isDynamic
+                    ? Icon(
+                        Icons.auto_awesome,
+                        color: AppConstants.primaryColor,
+                        size: 18,
+                      )
+                    : null,
+              ),
+              validator: (value) {
+                if (_isRequiredField(label) &&
+                    (value == null || value.trim().isEmpty)) {
+                  return 'هذا الحقل مطلوب';
+                }
+                return null;
+              },
+            );
+          },
+          optionsViewBuilder: (BuildContext context,
+              AutocompleteOnSelected<String> onSelected,
+              Iterable<String> options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4.0,
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: 200,
+                    maxWidth: MediaQuery.of(context).size.width - 80,
+                  ),
+                  child: options.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'لا توجد خيارات متاحة',
+                            style: GoogleFonts.cairo(
+                              color: AppConstants.hintColor,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            final String option = options.elementAt(index);
+                            return ListTile(
+                              title: Text(
+                                option,
+                                style: GoogleFonts.cairo(),
+                              ),
+                              onTap: () {
+                                onSelected(option);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // Enhanced dropdown field
+  Widget _buildDropdownField(
+    TextEditingController controller,
+    String label,
+    bool isLocked,
+    List<String> options,
+    bool isDynamic,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isDynamic) ...[
+          Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: AppConstants.primaryColor,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'تم الكشف تلقائياً',
+                style: GoogleFonts.cairo(
+                  fontSize: 10,
+                  color: AppConstants.primaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
+        DropdownButtonFormField<String>(
+          value: options.contains(controller.text) ? controller.text : null,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: isLocked
+                ? AppConstants.primaryColor.withOpacity(0.1)
+                : AppConstants.backgroundColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            hintText: 'اختر $label',
+            hintStyle: GoogleFonts.cairo(color: AppConstants.hintColor),
+            prefixIcon: isDynamic
+                ? Icon(
+                    Icons.auto_awesome,
+                    color: AppConstants.primaryColor,
+                    size: 18,
+                  )
+                : null,
+          ),
+          items: options
+              .map((option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(
+                      option,
+                      style: GoogleFonts.cairo(),
+                    ),
+                  ))
+              .toList(),
+          onChanged: isLocked
+              ? null
+              : (value) {
+                  controller.text = value ?? '';
+                },
+          validator: (value) {
+            if (_isRequiredField(label) && (value == null || value.isEmpty)) {
+              return 'يرجى اختيار $label';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  // Helper method to determine if field is required
+  bool _isRequiredField(String label) {
+    return ArabicTextUtils.isBookNameColumn(label) ||
+        ArabicTextUtils.isAuthorColumn(label);
   }
 
   Widget _buildLockModeToggle() {

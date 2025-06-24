@@ -3,43 +3,71 @@ import 'package:flutter/services.dart';
 import 'package:googleapis/sheets/v4.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import '../models/book.dart';
+import '../utils/arabic_text_utils.dart';
 import 'google_sheets_service.dart';
 
 class ColumnMapping {
   final String header;
   final int index;
-  final String fieldType; // 'text', 'dropdown', 'number'
-  final List<String> options; // For dropdown fields
+  final String
+      fieldType; // Base type: 'text', 'dropdown', 'autocomplete', 'location_compound'
+  final List<String> features; // Features: 'plus', 'md', 'long'
+  final List<String> options; // For dropdown/autocomplete fields
+  final bool isDynamic; // Track if this is a dynamically detected field
+  final String? keySheetColumn; // Track which key sheet column this came from
 
   ColumnMapping({
     required this.header,
     required this.index,
     required this.fieldType,
+    this.features = const [],
     this.options = const [],
+    this.isDynamic = false,
+    this.keySheetColumn,
   });
+
+  /// Check if this field has a specific feature
+  bool hasFeature(String feature) => features.contains(feature);
+
+  /// Get display type with features for debugging
+  String get displayType {
+    if (features.isEmpty) return fieldType;
+    return '$fieldType ${features.join(' ')}';
+  }
 
   Map<String, dynamic> toJson() => {
         'header': header,
         'index': index,
         'fieldType': fieldType,
+        'features': features,
         'options': options,
+        'isDynamic': isDynamic,
+        'keySheetColumn': keySheetColumn,
       };
 
   factory ColumnMapping.fromJson(Map<String, dynamic> json) => ColumnMapping(
         header: json['header'] ?? '',
         index: json['index'] ?? 0,
         fieldType: json['fieldType'] ?? 'text',
+        features: List<String>.from(json['features'] ?? []),
         options: List<String>.from(json['options'] ?? []),
+        isDynamic: json['isDynamic'] ?? false,
+        keySheetColumn: json['keySheetColumn'],
       );
 }
 
 class SheetsStructure {
   final List<ColumnMapping> columns;
   final Map<String, Set<String>> dropdownOptions;
+  final Map<String, String>
+      dynamicColumns; // Track dynamic columns from key sheet
+  final Map<String, List<String>> locationData; // For compound location fields
 
   SheetsStructure({
     required this.columns,
     required this.dropdownOptions,
+    this.dynamicColumns = const {},
+    this.locationData = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -47,6 +75,8 @@ class SheetsStructure {
         'dropdownOptions': dropdownOptions.map(
           (key, value) => MapEntry(key, value.toList()),
         ),
+        'dynamicColumns': dynamicColumns,
+        'locationData': locationData,
       };
 
   factory SheetsStructure.fromJson(Map<String, dynamic> json) {
@@ -60,134 +90,72 @@ class SheetsStructure {
       (key, value) => dropdownOptions[key] = Set<String>.from(value),
     );
 
+    final dynamicColumns =
+        Map<String, String>.from(json['dynamicColumns'] ?? {});
+    final locationData = <String, List<String>>{};
+    (json['locationData'] as Map<String, dynamic>?)?.forEach(
+      (key, value) => locationData[key] = List<String>.from(value),
+    );
+
     return SheetsStructure(
       columns: columns,
       dropdownOptions: dropdownOptions,
+      dynamicColumns: dynamicColumns,
+      locationData: locationData,
     );
   }
 }
 
 class DynamicSheetsService {
   final GoogleSheetsService _googleSheetsService = GoogleSheetsService();
-  SheetsStructure? _currentStructure;
+  FormStructure? _currentStructure;
 
-  // Analyze Google Sheets structure and extract dynamic information
-  Future<SheetsStructure?> analyzeSheetStructure() async {
+  /// Key sheet is the ONLY source of truth for ALL field definitions
+  Future<FormStructure?> analyzeSheetStructure() async {
     try {
-      print('🔍 Analyzing Google Sheets structure...');
+      print(
+          '🔑 Analyzing structure using KEY SHEET as SINGLE SOURCE OF TRUTH...');
 
-      // First, try to get key sheet data
-      final keyConfig = await _loadKeyConfiguration();
-
-      final rawData = await _googleSheetsService.getAllBooks();
-      if (rawData == null || rawData.isEmpty) {
-        print('❌ No data found in Google Sheets');
+      // Load key sheet data using proper data model
+      final keySheetData = await _loadKeySheetData();
+      if (keySheetData == null) {
+        print('❌ No key sheet data found - cannot proceed');
         return null;
       }
 
-      print('📊 Found ${rawData.length} rows in Google Sheets');
+      print(
+          '📊 Loaded key sheet with ${keySheetData.dataRows.length} data rows');
+      print('🎯 Headers: ${keySheetData.nonEmptyHeaders.join(' | ')}');
 
-      // Extract headers from first row
-      final headers = rawData.first;
-      print('📋 Headers: ${headers.join(' | ')}');
+      // Build complete structure from key sheet using data models
+      final structure = await _buildFormStructure(keySheetData);
 
-      // Analyze each column
-      final columns = <ColumnMapping>[];
-      final dropdownOptions = <String, Set<String>>{};
+      _currentStructure = structure;
 
-      for (int i = 0; i < headers.length; i++) {
-        final header = headers[i].trim();
-        if (header.isEmpty) continue;
+      print('✅ Structure built ENTIRELY from key sheet using data models!');
+      print('🎯 Total fields detected: ${structure.fields.length}');
 
-        // Check if we have key configuration for this column
-        Map<String, dynamic> keyInfo = {'type': 'none', 'options': <String>[]};
-        if (keyConfig != null) {
-          keyInfo = _getKeyOptionsForColumn(header, i, keyConfig);
-        }
-
-        // Collect all values in this column (excluding header)
-        final columnValues = <String>{};
-        for (int rowIndex = 1; rowIndex < rawData.length; rowIndex++) {
-          if (i < rawData[rowIndex].length) {
-            final value = rawData[rowIndex][i].toString().trim();
-            if (value.isNotEmpty && value != 'لا يوجد') {
-              columnValues.add(value);
-            }
-          }
-        }
-
-        // Determine field type based on key configuration and data
-        String fieldType;
-        List<String> finalOptions = [];
-
-        if (keyInfo['type'] == 'location_compound') {
-          fieldType = 'location_compound';
-          finalOptions = []; // Will be handled specially in UI
-        } else if (keyInfo['type'] == 'dropdown') {
-          fieldType = 'dropdown';
-          final keyOptions = keyInfo['options'] as List<String>;
-          final allOptions = <String>{};
-          allOptions.addAll(keyOptions);
-          allOptions.addAll(columnValues);
-          finalOptions = allOptions.toList();
-        } else if (keyInfo['type'] == 'autocomplete') {
-          fieldType = 'autocomplete';
-          final keyOptions = keyInfo['options'] as List<String>;
-          final allOptions = <String>{};
-          allOptions.addAll(keyOptions);
-          allOptions.addAll(columnValues);
-          finalOptions = allOptions.toList();
-        } else {
-          // Use fallback logic
-          fieldType = _determineFieldType(header, columnValues, false);
-          finalOptions = fieldType == 'dropdown' ? columnValues.toList() : [];
-        }
-
-        final mapping = ColumnMapping(
-          header: header,
-          index: i,
-          fieldType: fieldType,
-          options: finalOptions,
-        );
-
-        columns.add(mapping);
-
-        // Store additional data for compound location fields
-        if (fieldType == 'location_compound') {
-          dropdownOptions['${header}_rows'] =
-              (keyInfo['rows'] as List<String>).toSet();
-          dropdownOptions['${header}_columns'] =
-              (keyInfo['columns'] as List<String>).toSet();
-        } else if (fieldType == 'dropdown' || fieldType == 'autocomplete') {
-          dropdownOptions[header] = finalOptions.toSet();
-        }
-
-        final keyOptionsCount = keyInfo['options'] is List
-            ? (keyInfo['options'] as List).length
-            : 0;
-        print(
-            '📝 Column $i: $header -> $fieldType (${finalOptions.length} total options, $keyOptionsCount from key)');
+      // Debug log all detected fields
+      for (final field in structure.fields) {
+        final optionsInfo = field.options.isNotEmpty
+            ? ' (${field.options.length} options)'
+            : '';
+        print('   📝 ${field.displayName} -> ${field.displayType}$optionsInfo');
       }
 
-      _currentStructure = SheetsStructure(
-        columns: columns,
-        dropdownOptions: dropdownOptions,
-      );
-
-      print('✅ Sheet structure analyzed successfully');
-      return _currentStructure;
-    } catch (e) {
-      print('❌ Error analyzing sheet structure: $e');
+      return structure;
+    } catch (e, stackTrace) {
+      print('❌ Error analyzing key sheet structure: $e');
+      print('Stack trace: $stackTrace');
       return null;
     }
   }
 
-  // Load key configuration from the مفتاح sheet
-  Future<List<List<String>>?> _loadKeyConfiguration() async {
+  /// Load key sheet data and return structured data model
+  Future<KeySheetData?> _loadKeySheetData() async {
     try {
-      print('🔑 Loading key configuration...');
+      print('🔑 Loading key sheet data using data models...');
 
-      // Use a more robust approach - limit the range to avoid parsing issues
       final credentialsJson = await rootBundle
           .loadString('assets/credentials/service-account-key.json');
       final credentials =
@@ -198,361 +166,400 @@ class DynamicSheetsService {
 
       const spreadsheetId = '1-TXwGU-Rku_a6Dx4C5rFvNNPWOs3TvD75JY8Y0byGsY';
 
-      // Use correct range to get all key data including authors in column F
+      // Use maximum range to capture ALL possible columns
       final keyData = await sheetsApi.spreadsheets.values.get(
         spreadsheetId,
-        'مفتاح!A:H', // Full range to include authors in column F
+        'مفتاح!A:ZZ', // Maximum range to handle future column additions dynamically
       );
 
       client.close();
 
       if (keyData.values != null && keyData.values!.isNotEmpty) {
-        print('✅ Key configuration loaded: ${keyData.values!.length} rows');
-        return keyData.values!
+        final rawData = keyData.values!
             .map((row) => row.map((cell) => cell.toString()).toList())
             .toList();
+
+        print('✅ Raw key sheet loaded: ${rawData.length} rows');
+
+        // Convert to structured data model
+        final keySheetData = KeySheetData.fromRawData(rawData);
+
+        print('✅ Key sheet data model created:');
+        print('   📋 Headers: ${keySheetData.headers.length}');
+        print('   🎯 Field types: ${keySheetData.fieldTypes.length}');
+        print('   📊 Data rows: ${keySheetData.dataRows.length}');
+
+        return keySheetData;
       }
 
       return null;
     } catch (e) {
-      print('⚠️ Could not load key configuration: $e');
-      print('⚠️ Falling back to static configuration');
-      return _getStaticKeyConfiguration();
+      print('⚠️ Could not load key sheet: $e');
+      return null;
     }
   }
 
-  // Fallback static key configuration based on actual structure
-  List<List<String>> _getStaticKeyConfiguration() {
-    return [
-      ['الصف', 'العامود', '', 'تصنيفات', '', 'المؤلفين'],
-      ['A', '1', '', 'علوم', '', 'إبراهيم عباس'],
-      ['B', '2', '', 'إسلاميات', '', 'ياسر بهجت'],
-      ['C', '3', '', 'إنسانيات', '', 'مهن الهناني'],
-      ['D', '4', '', 'لغة وأدب', '', 'أحمد مراد'],
-      ['E', '5', '', 'أعمال وإدارة', '', 'تزكية النفس والدعاء'],
-      ['', '6', '', 'فنون', '', ''],
-      ['', '7', '', 'ثقافة عامة', '', ''],
-      ['', '8', '', 'روايات', '', ''],
-    ];
+  /// Build form structure using data models instead of raw JSON
+  Future<FormStructure> _buildFormStructure(KeySheetData keySheetData) async {
+    print('🏗️ Building form structure using data models...');
+
+    final fields = <FieldConfig>[];
+    LocationData? locationData;
+
+    // Process each column header
+    for (final header in keySheetData.nonEmptyHeaders) {
+      print('🔍 Processing field: "$header"');
+
+      // Get column data using data model methods
+      final columnValues = keySheetData.getColumnValues(header);
+      final explicitFieldType = keySheetData.getFieldType(header);
+
+      // Skip completely empty columns
+      if (columnValues.isEmpty) {
+        print('   ⚠️ Skipping empty field: "$header"');
+        continue;
+      }
+
+      print('   📋 Found ${columnValues.length} unique values');
+
+      // Handle location components specially
+      if (_isLocationComponent(header, columnValues)) {
+        print('   🗺️ Detected location component: "$header"');
+        locationData =
+            _handleLocationComponent(header, columnValues, locationData);
+        continue; // Don't add as separate field
+      }
+
+      // Determine field type and features
+      final fieldTypeData = _determineFieldTypeAndFeatures(
+          header, columnValues, explicitFieldType);
+
+      // Create field configuration
+      final fieldConfig = FieldConfig(
+        name: header,
+        displayName: header,
+        type: fieldTypeData['type'],
+        features: fieldTypeData['features'],
+        options: columnValues.toList()..sort(),
+        isDynamic: true, // All key sheet fields are dynamic
+        keySheetColumn: header,
+      );
+
+      fields.add(fieldConfig);
+
+      print(
+          '   ✅ Added field: "${fieldConfig.displayName}" -> ${fieldConfig.displayType}');
+    }
+
+    // Add compound location field if we found components
+    if (locationData != null && locationData.isComplete) {
+      final locationField = FieldConfig(
+        name: 'موقع المكتبة',
+        displayName: 'موقع المكتبة',
+        type: FieldType.locationCompound,
+        features: [],
+        options: locationData.generateCombinations(),
+        isDynamic: true,
+        keySheetColumn: 'location_compound',
+      );
+      fields.add(locationField);
+      print(
+          '   🗺️ Added compound location field with ${locationField.options.length} combinations');
+    }
+
+    print(
+        '✅ Form structure complete: ${fields.length} fields using data models');
+
+    return FormStructure(
+      fields: fields,
+      locationData: locationData,
+    );
   }
 
-  // Extract dropdown options from key configuration ONLY (efficient!)
-  Map<String, dynamic> _getKeyOptionsForColumn(
-      String header, int columnIndex, List<List<String>> keyConfig) {
-    // Check if this is a category column
-    if (header.contains('تصنيف') || header.toLowerCase().contains('category')) {
-      final categories = <String>[];
-      for (int i = 1; i < keyConfig.length; i++) {
-        if (keyConfig[i].length > 3) {
-          final category = keyConfig[i][3].trim();
-          if (category.isNotEmpty) {
-            categories.add(category);
-          }
-        }
-      }
+  /// Determine field type and features from data
+  Map<String, dynamic> _determineFieldTypeAndFeatures(
+      String header, Set<String> values, String explicitFieldType) {
+    FieldType type;
+    List<FieldFeature> features = [];
+
+    if (explicitFieldType.isNotEmpty) {
+      // Parse explicit field type with features
+      final parsed = _parseFieldTypeWithFeatures(explicitFieldType);
+      type = parsed['type'];
+      features = parsed['features'];
       print(
-          '🎯 Found ${categories.length} categories from Key sheet: ${categories.take(5).join(', ')}${categories.length > 5 ? '...' : ''}');
-      return {
-        'type': 'dropdown',
-        'options': categories.toSet().toList()..sort(),
-      };
+          '   🎯 Using explicit field type: ${type.name} with features: ${features.map((f) => f.name).join(', ')}');
+    } else {
+      // Auto-detect field type
+      type = _autoDetectFieldType(header, values);
+      print('   🎯 Auto-detected field type: ${type.name}');
     }
 
-    // Check if this is an author column - USE ONLY KEY SHEET
-    else if (header.contains('مؤلف') ||
-        header.toLowerCase().contains('author')) {
-      final authors = <String>{};
-
-      // Extract authors ONLY from Key config (column F, index 5) - More efficient!
-      for (int i = 1; i < keyConfig.length; i++) {
-        if (keyConfig[i].length > 5) {
-          final author =
-              keyConfig[i][5].trim(); // Column F (index 5) in Key sheet
-          if (author.isNotEmpty &&
-              author != 'لا يوجد' &&
-              author != 'N/A' &&
-              author != '-' &&
-              author != 'المؤلفين') {
-            // Exclude header
-            authors.add(author);
-          }
-        }
-      }
-
-      print(
-          '📚 Found ${authors.length} authors from Key sheet only: ${authors.take(3).join(', ')}${authors.length > 3 ? '...' : ''}');
-
-      return {
-        'type': 'autocomplete',
-        'options': authors.toList()..sort(),
-      };
-    }
-
-    // For other columns, return regular text field
     return {
-      'type': 'text',
-      'options': <String>[],
+      'type': type,
+      'features': features,
     };
   }
 
-  // Determine field type based on header and data (fallback logic)
-  String _determineFieldType(String header, Set<String> values,
-      [bool hasKeyData = false]) {
-    final headerLower = header.toLowerCase();
+  /// Auto-detect field type based on header and values
+  FieldType _autoDetectFieldType(String header, Set<String> values) {
+    // Use existing Arabic text utils for field type suggestion
+    final typeString = ArabicTextUtils.suggestFieldType(header, values);
 
-    // Book names should always be text (not dropdown)
-    if (headerLower.contains('اسم الكتاب') ||
-        headerLower.contains('book name') ||
-        headerLower.contains('كتاب')) {
-      return 'text';
-    }
-
-    // Author names should be autocomplete (not restrictive dropdown)
-    if (headerLower.contains('مؤلف') ||
-        headerLower.contains('author') ||
-        headerLower.contains('كاتب')) {
-      return 'autocomplete';
-    }
-
-    // Part numbers and descriptions should be text
-    if (headerLower.contains('رقم') ||
-        headerLower.contains('number') ||
-        headerLower.contains('جزء') ||
-        headerLower.contains('تعريف') ||
-        headerLower.contains('description')) {
-      return 'text';
-    }
-
-    // Categories should be dropdown (but this is usually handled by key)
-    if (headerLower.contains('تصنيف') ||
-        headerLower.contains('category') ||
-        headerLower.contains('النوع')) {
-      return 'dropdown';
-    }
-
-    // Location should be compound (but this is usually handled by key)
-    if (headerLower.contains('موقع') ||
-        headerLower.contains('location') ||
-        headerLower.contains('مكان')) {
-      return 'dropdown'; // Fallback to simple dropdown
-    }
-
-    // Default to text for safety (avoid restrictive dropdowns)
-    return 'text';
-  }
-
-  // Get available options for a specific field
-  List<String> getDropdownOptions(String fieldName) {
-    if (_currentStructure == null) return [];
-
-    final options = _currentStructure!.dropdownOptions[fieldName];
-    return options?.toList() ?? [];
-  }
-
-  // Get column mapping by header name
-  ColumnMapping? getColumnByHeader(String headerName) {
-    if (_currentStructure == null) return null;
-
-    try {
-      return _currentStructure!.columns.firstWhere(
-        (col) => col.header.toLowerCase().contains(headerName.toLowerCase()),
-      );
-    } catch (e) {
-      return null;
+    switch (typeString) {
+      case 'dropdown':
+        return FieldType.dropdown;
+      case 'autocomplete':
+        return FieldType.autocomplete;
+      case 'location_compound':
+        return FieldType.locationCompound;
+      default:
+        return FieldType.text;
     }
   }
 
-  // Create a Book object from dynamic form data
-  Book createBookFromDynamicData(Map<String, String> formData) {
-    if (_currentStructure == null) {
-      throw Exception('Sheet structure not analyzed');
+  /// Parse field type with features from user input
+  Map<String, dynamic> _parseFieldTypeWithFeatures(String userInput) {
+    final input = userInput.toLowerCase().trim();
+
+    // Extract features (modifiers)
+    final features = <FieldFeature>[];
+    String baseType = input;
+
+    // Check for "plus" feature (add new option button)
+    if (input.contains('plus') ||
+        input.contains('+') ||
+        input.contains('إضافة')) {
+      features.add(FieldFeature.plus);
+      baseType = baseType
+          .replaceAll(RegExp(r'\s*plus\s*'), ' ')
+          .replaceAll('+', '')
+          .replaceAll('إضافة', '')
+          .trim();
     }
 
-    String libraryLocation = '';
-    String category = '';
-    String bookName = '';
-    String authorName = '';
-    String briefDescription = '';
-
-    String volumeNumber = '';
-
-    // Map form data to book fields based on column headers
-    for (final column in _currentStructure!.columns) {
-      final value = formData[column.header] ?? '';
-
-      if (column.header.contains('موقع') ||
-          column.header.toLowerCase().contains('location')) {
-        libraryLocation += (libraryLocation.isEmpty ? '' : '') + value;
-      } else if (column.header.contains('تصنيف') ||
-          column.header.toLowerCase().contains('category')) {
-        category = value;
-      } else if (column.header.contains('اسم الكتاب') ||
-          column.header.toLowerCase().contains('book')) {
-        bookName = value;
-      } else if (column.header.contains('مؤلف') ||
-          column.header.toLowerCase().contains('author')) {
-        authorName = value;
-      } else if (column.header.contains('رقم الجزء') ||
-          column.header.toLowerCase().contains('volume')) {
-        volumeNumber = value;
-      } else if (column.header.contains('تعريف') ||
-          column.header.toLowerCase().contains('description')) {
-        briefDescription = value;
-      }
+    // Check for "md" feature (markdown support)
+    if (input.contains('md') ||
+        input.contains('markdown') ||
+        input.contains('تنسيق')) {
+      features.add(FieldFeature.md);
+      baseType = baseType
+          .replaceAll(RegExp(r'\s*md\s*'), ' ')
+          .replaceAll('markdown', '')
+          .replaceAll('تنسيق', '')
+          .trim();
     }
 
-    return Book(
-      libraryLocation: libraryLocation.trim(),
-      category: category,
-      bookName: bookName,
-      authorName: authorName,
-      briefDescription: briefDescription,
-      volumeNumber: volumeNumber.isNotEmpty ? volumeNumber : null,
-    );
+    // Check for "long" feature (multiline/large text area)
+    if (input.contains('long') ||
+        input.contains('multiline') ||
+        input.contains('طويل') ||
+        input.contains('متعدد')) {
+      features.add(FieldFeature.long);
+      baseType = baseType
+          .replaceAll(RegExp(r'\s*long\s*'), ' ')
+          .replaceAll('multiline', '')
+          .replaceAll('طويل', '')
+          .replaceAll('متعدد', '')
+          .trim();
+    }
+
+    // Normalize base type
+    FieldType normalizedType = _normalizeBaseFieldType(baseType);
+
+    print(
+        '   🎯 Parsed "$userInput" → type: "${normalizedType.name}", features: ${features.map((f) => f.name).join(', ')}');
+
+    return {
+      'type': normalizedType,
+      'features': features,
+    };
   }
 
-  // Convert Book to sheet row using dynamic structure
-  List<String> bookToSheetRow(Book book) {
-    if (_currentStructure == null) {
-      return book.toSheetRow(); // Fallback to default
+  /// Normalize base field type from user input to enum
+  FieldType _normalizeBaseFieldType(String userInput) {
+    final input = userInput.toLowerCase().trim();
+
+    // Text field variations
+    if (input == 'text' || input == 'نص' || input == 'كتابة') {
+      return FieldType.text;
     }
 
-    final row = List<String>.filled(_currentStructure!.columns.length, '');
-
-    for (final column in _currentStructure!.columns) {
-      final index = column.index;
-
-      if (column.header.contains('موقع') ||
-          column.header.toLowerCase().contains('location')) {
-        row[index] = book.libraryLocation;
-      } else if (column.header.contains('تصنيف') ||
-          column.header.toLowerCase().contains('category')) {
-        row[index] = book.category;
-      } else if (column.header.contains('اسم الكتاب') ||
-          column.header.toLowerCase().contains('book')) {
-        row[index] = book.bookName;
-      } else if (column.header.contains('مؤلف') ||
-          column.header.toLowerCase().contains('author')) {
-        row[index] = book.authorName;
-      } else if (column.header.contains('رقم الجزء') ||
-          column.header.toLowerCase().contains('volume')) {
-        row[index] = book.volumeNumber ?? '';
-      } else if (column.header.contains('تعريف') ||
-          column.header.toLowerCase().contains('description')) {
-        row[index] = book.briefDescription;
-      }
+    // Dropdown field variations
+    if (input == 'dropdown' ||
+        input == 'قائمة' ||
+        input == 'اختيار' ||
+        input == 'select') {
+      return FieldType.dropdown;
     }
 
-    return row;
+    // Autocomplete field variations
+    if (input == 'autocomplete' ||
+        input == 'تلقائي' ||
+        input == 'بحث' ||
+        input == 'search') {
+      return FieldType.autocomplete;
+    }
+
+    // Location compound field variations
+    if (input == 'location' ||
+        input == 'موقع' ||
+        input == 'location_compound') {
+      return FieldType.locationCompound;
+    }
+
+    // Default to text if unknown
+    print('   ⚠️ Unknown base field type "$userInput", defaulting to text');
+    return FieldType.text;
+  }
+
+  /// Check if a column represents a location component (row/column)
+  bool _isLocationComponent(String header, Set<String> values) {
+    final lowerHeader = header.toLowerCase();
+
+    // Check header patterns
+    if (lowerHeader.contains('صف') ||
+        lowerHeader.contains('row') ||
+        lowerHeader.contains('عامود') ||
+        lowerHeader.contains('عمود') ||
+        lowerHeader.contains('column')) {
+      return true;
+    }
+
+    // Check value patterns - if all values are single letters or numbers
+    final allSingleLetters =
+        values.every((v) => RegExp(r'^[A-Z]$').hasMatch(v));
+    final allNumbers = values.every((v) => RegExp(r'^\d+$').hasMatch(v));
+
+    return allSingleLetters || allNumbers;
+  }
+
+  /// Handle location component data using data models
+  LocationData? _handleLocationComponent(
+      String header, Set<String> values, LocationData? existingLocationData) {
+    final lowerHeader = header.toLowerCase();
+    final valuesList = values.toList()..sort();
+
+    List<String> rows = existingLocationData?.rows ?? [];
+    List<String> columns = existingLocationData?.columns ?? [];
+
+    if (lowerHeader.contains('صف') || lowerHeader.contains('row')) {
+      rows = valuesList;
+      print(
+          '   🗺️ Stored ${valuesList.length} row values: ${valuesList.join(', ')}');
+    } else if (lowerHeader.contains('عامود') ||
+        lowerHeader.contains('عمود') ||
+        lowerHeader.contains('column')) {
+      columns = valuesList;
+      print(
+          '   🗺️ Stored ${valuesList.length} column values: ${valuesList.join(', ')}');
+    }
+
+    return LocationData(rows: rows, columns: columns);
+  }
+
+  // Get available options for a specific field using data models
+  List<String> getFieldOptions(String fieldName) {
+    final field = _currentStructure?.getField(fieldName);
+    return field?.options ?? [];
   }
 
   // Get current structure
-  SheetsStructure? get currentStructure => _currentStructure;
+  FormStructure? get currentStructure => _currentStructure;
 
-  // Get all categories from the data
-  List<String> getCategories() {
-    final categoryColumn = getColumnByHeader('تصنيف');
-    if (categoryColumn != null) {
-      return categoryColumn.options;
-    }
-
-    // Fallback to analyzing dropdown options
-    final categories = _currentStructure?.dropdownOptions.entries
-            .where((entry) => entry.key.contains('تصنيف'))
-            .expand((entry) => entry.value)
-            .toList() ??
-        [];
-
-    return categories;
+  // Check if structure needs refresh
+  bool shouldRefreshStructure() {
+    return _currentStructure == null || _currentStructure!.needsRefresh;
   }
 
-  // Get all locations from the data
-  List<String> getLocations() {
-    final locationColumns = _currentStructure?.columns
-            .where((col) => col.header.contains('موقع'))
-            .toList() ??
-        [];
-
-    final locations = <String>{};
-    for (final column in locationColumns) {
-      locations.addAll(column.options);
-    }
-
-    return locations.toList();
+  // Clear cached structure to force refresh
+  void clearStructureCache() {
+    _currentStructure = null;
+    print('🔄 Structure cache cleared - will refresh on next access');
   }
 
-  // Get all authors from the data
-  List<String> getAuthors() {
-    final authorColumn = getColumnByHeader('مؤلف');
-    if (authorColumn != null) {
-      return authorColumn.options;
-    }
+  /// Enhanced method to get autocomplete options using data models
+  Future<List<String>> getAutocompleteOptions(String fieldName) async {
+    final fieldOptions = getFieldOptions(fieldName);
 
-    // Fallback to analyzing dropdown options
-    final authors = _currentStructure?.dropdownOptions.entries
-            .where((entry) =>
-                entry.key.contains('مؤلف') ||
-                entry.key.toLowerCase().contains('author'))
-            .expand((entry) => entry.value)
-            .toList() ??
-        [];
+    // For author fields, also get data from main sheet for comprehensive autocomplete
+    if (ArabicTextUtils.isAuthorColumn(fieldName)) {
+      try {
+        final rawData = await _googleSheetsService.getAllBooks();
+        if (rawData != null && rawData.isNotEmpty) {
+          final headers = rawData[0];
 
-    return authors;
-  }
+          // Find author column index
+          int? authorColumnIndex;
+          for (int i = 0; i < headers.length; i++) {
+            if (ArabicTextUtils.isAuthorColumn(headers[i].toString())) {
+              authorColumnIndex = i;
+              break;
+            }
+          }
 
-  // Update structure with additional authors from local data
-  void updateAuthorsFromLocalData(List<String> localAuthors) {
-    if (_currentStructure == null) return;
+          if (authorColumnIndex != null) {
+            final mainSheetAuthors = <String>{};
+            for (int i = 1; i < rawData.length; i++) {
+              if (authorColumnIndex < rawData[i].length) {
+                final author = rawData[i][authorColumnIndex].toString().trim();
+                if (ArabicTextUtils.isValidAuthorName(author)) {
+                  mainSheetAuthors.add(author);
+                }
+              }
+            }
 
-    // Find author column
-    final authorColumn = _currentStructure!.columns.firstWhere(
-      (col) =>
-          col.header.contains('مؤلف') ||
-          col.header.toLowerCase().contains('author'),
-      orElse: () => throw Exception('Author column not found'),
-    );
+            // Combine field options + main sheet authors
+            final combinedOptions = <String>{};
+            combinedOptions.addAll(fieldOptions);
+            combinedOptions.addAll(mainSheetAuthors);
 
-    // Combine existing authors with local authors
-    final existingAuthors = Set<String>.from(authorColumn.options);
-    final allAuthors = <String>{};
+            print(
+                '🎯 Enhanced autocomplete for "$fieldName": ${fieldOptions.length} from key + ${mainSheetAuthors.length} from main = ${combinedOptions.length} total');
 
-    // Add existing authors
-    allAuthors.addAll(existingAuthors);
-
-    // Add local authors (filtered)
-    for (final author in localAuthors) {
-      final cleanAuthor = author.trim();
-      if (cleanAuthor.isNotEmpty &&
-          cleanAuthor != 'لا يوجد' &&
-          cleanAuthor != 'N/A' &&
-          cleanAuthor != '-') {
-        allAuthors.add(cleanAuthor);
+            return combinedOptions.toList()..sort();
+          }
+        }
+      } catch (e) {
+        print('⚠️ Could not enhance autocomplete options: $e');
       }
     }
 
-    // Update the column options
-    final updatedColumns = _currentStructure!.columns.map((col) {
-      if (col.header.contains('مؤلف') ||
-          col.header.toLowerCase().contains('author')) {
-        return ColumnMapping(
-          header: col.header,
-          index: col.index,
-          fieldType: col.fieldType,
-          options: allAuthors.toList()..sort(),
-        );
+    return fieldOptions;
+  }
+
+  /// DEPRECATED: Legacy methods for backward compatibility
+  @deprecated
+  List<String> getDropdownOptions(String fieldName) =>
+      getFieldOptions(fieldName);
+
+  @deprecated
+  SheetsStructure? get currentLegacyStructure {
+    if (_currentStructure == null) return null;
+
+    // Convert FormStructure back to legacy SheetsStructure for compatibility
+    final columns = _currentStructure!.fields
+        .map((field) => ColumnMapping(
+              header: field.name,
+              index: 0, // Legacy index not used in new model
+              fieldType: field.type.name,
+              features: field.features.map((f) => f.name).toList(),
+              options: field.options,
+              isDynamic: field.isDynamic,
+              keySheetColumn: field.keySheetColumn,
+            ))
+        .toList();
+
+    final dropdownOptions = <String, Set<String>>{};
+    for (final field in _currentStructure!.fields) {
+      if (field.supportsDropdown || field.supportsAutocomplete) {
+        dropdownOptions[field.name] = field.options.toSet();
       }
-      return col;
-    }).toList();
+    }
 
-    // Update the structure
-    _currentStructure = SheetsStructure(
-      columns: updatedColumns,
-      dropdownOptions: {
-        ..._currentStructure!.dropdownOptions,
-        authorColumn.header: allAuthors,
-      },
+    return SheetsStructure(
+      columns: columns,
+      dropdownOptions: dropdownOptions,
     );
-
-    print('📚 Updated authors list with ${allAuthors.length} total authors');
   }
 }

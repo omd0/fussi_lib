@@ -120,3 +120,152 @@ The page is fully localized in Arabic with:
 ---
 
 **Built with ❤️ for Beit Al-Fussi Library using Bootstrap 5** 
+
+# فهرس الوثائق | Documentation Index
+
+<div dir="rtl" lang="ar">
+
+## مرحباً بك في وثائق مكتبة فصي
+
+هذا الفهرس يوجهك إلى جميع الوثائق المتاحة للمشروع، منظمة حسب الجمهور المستهدف.
+
+</div>
+
+Welcome to the Fussi Library documentation index. This guide directs you to all available project documentation, organized by target audience.
+
+---
+
+## 📚 للمستخدمين | For Users
+
+<div dir="rtl" lang="ar">
+
+### الوثائق الأساسية
+- **[دليل المستخدم](user/README.md)** - دليل شامل لاستخدام التطبيق
+- **[دليل التثبيت](user/INSTALLATION_GUIDE.md)** - خطوات التثبيت والإعداد
+
+### الإصدارات
+- **[ملاحظات الإصدار v1.0.0](../release/RELEASE_NOTES_v1.0.0.md)** - ميزات الإصدار الأول
+- **[ملاحظات الإصدار v1.1.0](../release/RELEASE_NOTES_v1.1.0.md)** - تحديثات الإصدار الثاني
+- **[دليل رفع التطبيق](../release/UPLOAD_READY_v1.1.0.md)** - معلومات الإصدار الجاهز
+
+</div>
+
+### Essential Documentation
+- **[User Guide](user/README.md)** - Comprehensive application usage guide
+- **[Installation Guide](user/INSTALLATION_GUIDE.md)** - Installation and setup steps
+
+### Releases
+- **[Release Notes v1.0.0](../release/RELEASE_NOTES_v1.0.0.md)** - First release features
+- **[Release Notes v1.1.0](../release/RELEASE_NOTES_v1.1.0.md)** - Second release updates
+- **[Upload Ready Guide](../release/UPLOAD_READY_v1.1.0.md)** - Ready release information
+
+---
+
+## 🛠️ للمطورين | For Developers
+
+<div dir="rtl" lang="ar">
+
+### الوثائق التقنية
+- **[دليل المطور](dev/README.md)** - دليل شامل للتطوير والصيانة
+- **[أنواع الحقول والميزات](dev/FIELD_TYPES_AND_FEATURES_GUIDE.md)** - دليل كامل لأنواع الحقول (22 نوع) والميزات (30 ميزة)
+- **[بنية Google Sheets](dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)** - دليل تكامل Google Sheets
+- **[ملخص النظام المحسن](dev/ENHANCED_FIELD_SYSTEM_SUMMARY.md)** - ملخص تطبيق النظام
+
+### الكود والخدمات
+- **[خدمة تحميل البنية](../lib/services/README_STRUCTURE_LOADER.md)** - وثائق خدمة تحميل البنية
+
+</div>
+
+### Technical Documentation
+- **[Developer Guide](dev/README.md)** - Comprehensive development and maintenance guide
+- **[Field Types & Features](dev/FIELD_TYPES_AND_FEATURES_GUIDE.md)** - Complete guide to field types (22 types) and features (30 features)
+- **[Google Sheets Structure](dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)** - Google Sheets integration guide
+- **[Enhanced System Summary](dev/ENHANCED_FIELD_SYSTEM_SUMMARY.md)** - System implementation summary
+
+### Code & Services
+- **[Structure Loader Service](../lib/services/README_STRUCTURE_LOADER.md)** - Structure loader service documentation
+
+---
+
+## 🗂️ بنية المشروع | Project Structure
+
+<div dir="rtl" lang="ar">
+
+```
+docs/
+├── README.md                    # هذا الفهرس
+├── dev/                        # وثائق المطورين
+│   ├── README.md               # دليل المطور الرئيسي
+│   ├── FIELD_TYPES_AND_FEATURES_GUIDE.md
+│   ├── GOOGLE_SHEETS_STRUCTURE_GUIDE.md
+│   └── ENHANCED_FIELD_SYSTEM_SUMMARY.md
+└── user/                       # وثائق المستخدمين
+    ├── README.md               # دليل المستخدم الرئيسي
+    └── INSTALLATION_GUIDE.md   # دليل التثبيت
+```
+
+</div>
+
+```
+docs/
+├── README.md                    # This index
+├── dev/                        # Developer documentation
+│   ├── README.md               # Main developer guide
+│   ├── FIELD_TYPES_AND_FEATURES_GUIDE.md
+│   ├── GOOGLE_SHEETS_STRUCTURE_GUIDE.md
+│   └── ENHANCED_FIELD_SYSTEM_SUMMARY.md
+└── user/                       # User documentation
+    ├── README.md               # Main user guide
+    └── INSTALLATION_GUIDE.md   # Installation guide
+```
+
+---
+
+## 🔗 روابط سريعة | Quick Links
+
+### للبدء السريع | Quick Start
+- [تثبيت التطبيق | Install App](user/INSTALLATION_GUIDE.md)
+- [إعداد التطوير | Development Setup](dev/README.md#التطوير)
+- [مهام المشروع | Project TODO](../TODO.md)
+
+### المراجع التقنية | Technical References
+- [أنواع الحقول | Field Types](dev/FIELD_TYPES_AND_FEATURES_GUIDE.md#أنواع-الحقول)
+- [الميزات المتاحة | Available Features](dev/FIELD_TYPES_AND_FEATURES_GUIDE.md#الميزات)
+- [Google Sheets API](dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)
+
+### المساعدة والدعم | Help & Support
+- [استكشاف الأخطاء | Troubleshooting](user/README.md#استكشاف-الأخطاء)
+- [أسئلة شائعة | FAQ](user/README.md)
+- [تقرير مشكلة | Report Issue](https://github.com/your-repo/issues)
+
+---
+
+## 📝 ملاحظات هامة | Important Notes
+
+<div dir="rtl" lang="ar">
+
+### للمستخدمين الجدد
+1. ابدأ بـ [دليل التثبيت](user/INSTALLATION_GUIDE.md)
+2. اقرأ [دليل المستخدم](user/README.md) للتعرف على الميزات
+3. راجع [استكشاف الأخطاء](user/README.md#استكشاف-الأخطاء) عند مواجهة مشاكل
+
+### للمطورين الجدد
+1. ابدأ بـ [دليل المطور](dev/README.md)
+2. راجع [أنواع الحقول والميزات](dev/FIELD_TYPES_AND_FEATURES_GUIDE.md)
+3. تعرف على [بنية Google Sheets](dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)
+
+</div>
+
+### For New Users
+1. Start with [Installation Guide](user/INSTALLATION_GUIDE.md)
+2. Read [User Guide](user/README.md) to learn about features
+3. Check [Troubleshooting](user/README.md#troubleshooting) when facing issues
+
+### For New Developers
+1. Start with [Developer Guide](dev/README.md)
+2. Review [Field Types & Features](dev/FIELD_TYPES_AND_FEATURES_GUIDE.md)
+3. Learn about [Google Sheets Structure](dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)
+
+---
+
+*آخر تحديث | Last Updated: ديسمبر 2024* 

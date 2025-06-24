@@ -1,14 +1,34 @@
-# 📚 مكتبة بيت الفصي الرقمية - Fussi Library App
+# 📚 مكتبة فصي | Fussi Library
 
-A Flutter application for managing the Beit Al-Fussi Library collection with full Arabic support and Google Sheets integration.
+<div dir="rtl" lang="ar">
 
-## ✨ Features
+تطبيق Flutter لإدارة مجموعة مكتبة بيت الفصي مع دعم كامل للعربية وتكامل Google Sheets.
+
+</div>
+
+A Flutter application for managing the Beit Al-Fussi Library collection with full Arabic support, dynamic forms, and Google Sheets integration.
+
+## ✨ الميزات | Features
+
+<div dir="rtl" lang="ar">
+
+- 🌍 **تصميم عربي أولاً**: دعم كامل للكتابة من اليمين إلى اليسار
+- 📝 **نماذج ديناميكية**: إدخال ذكي للكتب مع حقول قابلة للتخصيص
+- 📊 **تكامل Google Sheets**: مزامنة مباشرة مع جدول المكتبة
+- 🎨 **واجهة حديثة**: تصميم Material نظيف مع خط Cairo
+- 📱 **تخطيط متجاوب**: يعمل على جميع أحجام الشاشات
+- 🔄 **مشاركة P2P**: مشاركة البيانات بين الأجهزة
+- 🔍 **بحث متقدم**: البحث والتصفية المتقدمة
+
+</div>
 
 - 🌍 **Arabic-First Design**: Full RTL (Right-to-Left) support
-- 📝 **Smart Form Input**: Intuitive book entry with validation
+- 📝 **Dynamic Forms**: Smart book entry with customizable fields
 - 📊 **Google Sheets Integration**: Direct sync with library spreadsheet
 - 🎨 **Modern UI**: Clean Material Design with Cairo font
 - 📱 **Responsive Layout**: Works on all screen sizes
+- 🔄 **P2P Sharing**: Device-to-device data sharing
+- 🔍 **Advanced Search**: Advanced search and filtering capabilities
 
 ## 🚀 Quick Start
 
@@ -112,13 +132,37 @@ The app connects to this Google Sheet:
 - Credentials file is git-ignored for security
 - No user data is stored locally
 
+## 📖 الوثائق | Documentation
+
+<div dir="rtl" lang="ar">
+
+### للمطورين
+- **[دليل المطور](docs/dev/README.md)**: دليل شامل للتطوير والصيانة
+- **[أنواع الحقول والميزات](docs/dev/FIELD_TYPES_AND_FEATURES_GUIDE.md)**: دليل كامل لأنواع الحقول
+- **[بنية Google Sheets](docs/dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)**: دليل تكامل Google Sheets
+- **[ملخص النظام المحسن](docs/dev/ENHANCED_FIELD_SYSTEM_SUMMARY.md)**: ملخص تطبيق النظام
+
+### للمستخدمين
+- **[دليل المستخدم](docs/user/README.md)**: دليل شامل للاستخدام
+- **[دليل التثبيت](docs/user/INSTALLATION_GUIDE.md)**: خطوات التثبيت والإعداد
+
+</div>
+
+### For Developers
+- **[Developer Guide](docs/dev/README.md)**: Comprehensive development and maintenance guide
+- **[Field Types & Features](docs/dev/FIELD_TYPES_AND_FEATURES_GUIDE.md)**: Complete field types guide
+- **[Google Sheets Structure](docs/dev/GOOGLE_SHEETS_STRUCTURE_GUIDE.md)**: Google Sheets integration guide
+- **[Enhanced System Summary](docs/dev/ENHANCED_FIELD_SYSTEM_SUMMARY.md)**: System implementation summary
+
+### For Users
+- **[User Guide](docs/user/README.md)**: Comprehensive usage guide
+- **[Installation Guide](docs/user/INSTALLATION_GUIDE.md)**: Installation and setup steps
+
 ## 🌟 Coming Soon
 
-- 📖 **Library Browser**: View all books in the collection
-- 🔍 **Advanced Search**: Find books by multiple criteria
 - 📊 **Analytics Dashboard**: Library statistics and insights
 - 🌙 **Dark Mode**: Theme switching support
-- 💾 **Offline Mode**: SQLite local storage with sync
+- 💾 **Enhanced Offline Mode**: Improved local storage capabilities
 
 ## 🤝 Contributing
 
