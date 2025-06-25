@@ -663,7 +663,9 @@ enum FieldFeature {
   realtime, // Real-time updates
   offline, // Works offline
   backup, // Automatically backed up
-  compress; // Compresses data
+  compress, // Compresses data
+  row, // Display in row layout (horizontal)
+  col; // Display in column layout (vertical)
 
   String get displayName {
     switch (this) {
@@ -727,6 +729,10 @@ enum FieldFeature {
         return 'نسخ احتياطي';
       case FieldFeature.compress:
         return 'مضغوط';
+      case FieldFeature.row:
+        return 'صف';
+      case FieldFeature.col:
+        return 'عمود';
     }
   }
 
@@ -792,6 +798,10 @@ enum FieldFeature {
         return 'Backup';
       case FieldFeature.compress:
         return 'Compress';
+      case FieldFeature.row:
+        return 'Row';
+      case FieldFeature.col:
+        return 'Column';
     }
   }
 
@@ -857,6 +867,10 @@ enum FieldFeature {
         return 'ينشئ نسخ احتياطية تلقائياً';
       case FieldFeature.compress:
         return 'يضغط البيانات لتوفير المساحة';
+      case FieldFeature.row:
+        return 'يعرض حقل الموقع في تخطيط أفقي (صف)';
+      case FieldFeature.col:
+        return 'يعرض حقل الموقع في تخطيط عمودي';
     }
   }
 }

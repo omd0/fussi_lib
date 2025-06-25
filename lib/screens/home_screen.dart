@@ -8,7 +8,6 @@ import '../services/cache_service.dart';
 import '../services/hybrid_library_service.dart';
 import 'add_book_screen.dart';
 import 'library_browser_screen.dart';
-import 'statistics_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -94,39 +93,184 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onRefresh: _onRefresh,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header Section
+                _buildHeaderSection(context),
+
                 // Welcome Banner (dismissible)
                 if (_showWelcomeBanner) ...[
-                  _buildWelcomeBanner(context),
-                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildWelcomeBanner(context),
+                  ),
+                  const SizedBox(height: 16),
                 ],
 
-                // Quick Stats Card
-                _buildQuickStatsCard(context, ref),
+                // Main Action Buttons - Centered
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildActionButtons(context),
+                ),
                 const SizedBox(height: 24),
 
-                // Main Action Buttons
-                _buildActionButtons(context),
-                const SizedBox(height: 24),
+                // Content Sections
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Recent Books Section
+                      _buildRecentBooksSection(recentBooksAsync),
+                      const SizedBox(height: 24),
 
-                // Recent Books Section
-                _buildRecentBooksSection(recentBooksAsync),
-                const SizedBox(height: 24),
+                      // Popular Categories Section
+                      _buildPopularCategoriesSection(popularCategoriesAsync),
+                      const SizedBox(height: 24),
 
-                // Popular Categories Section
-                _buildPopularCategoriesSection(popularCategoriesAsync),
-                const SizedBox(height: 24),
-
-                // Popular Authors Section
-                _buildPopularAuthorsSection(popularAuthorsAsync),
+                      // Popular Authors Section
+                      _buildPopularAuthorsSection(popularAuthorsAsync),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderSection(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isCompact = screenHeight < 700;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          20,
+          MediaQuery.of(context).padding.top + (isCompact ? 16 : 24),
+          20,
+          isCompact ? 20 : 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppConstants.primaryColor,
+            AppConstants.primaryColor.withOpacity(0.8),
+            AppConstants.accentColor,
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppConstants.primaryColor.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // App Icon/Logo
+          Container(
+            width: isCompact ? 60 : 70,
+            height: isCompact ? 60 : 70,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Icon(
+              Icons.local_library,
+              size: isCompact ? 30 : 36,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: isCompact ? 8 : 12),
+
+          // App Title
+          FittedBox(
+            child: Text(
+              AppConstants.appTitle,
+              style: GoogleFonts.cairo(
+                fontSize: isCompact ? 22 : 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          SizedBox(height: isCompact ? 4 : 6),
+
+          // Subtitle
+          Text(
+            'نظام إدارة مكتبة متطور وذكي',
+            style: GoogleFonts.cairo(
+              fontSize: isCompact ? 13 : 15,
+              color: Colors.white.withOpacity(0.9),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          SizedBox(height: isCompact ? 12 : 16),
+
+          // Quick Info Row - More compact
+          if (!isCompact)
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              children: [
+                _buildHeaderInfoItem(
+                  icon: Icons.cloud_sync,
+                  label: 'متزامن',
+                  color: Colors.white.withOpacity(0.9),
+                ),
+                _buildHeaderInfoItem(
+                  icon: Icons.offline_bolt,
+                  label: 'بلا إنترنت',
+                  color: Colors.white.withOpacity(0.9),
+                ),
+                _buildHeaderInfoItem(
+                  icon: Icons.security,
+                  label: 'آمن',
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderInfoItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.cairo(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
@@ -190,228 +334,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildQuickStatsCard(BuildContext context, WidgetRef ref) {
-    final statisticsAsync = ref.watch(statisticsCacheProvider);
+  Widget _buildActionButtons(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isCompact = screenHeight < 700;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isCompact ? 16 : 18),
       decoration: BoxDecoration(
         color: AppConstants.cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 15,
+            offset: const Offset(0, 3),
           ),
         ],
-      ),
-      child: statisticsAsync.when(
-        data: (stats) {
-          final totalBooks = stats['totalBooks'] ?? 0;
-          final categories = stats['categories'] as List? ?? [];
-          final authors = stats['authors'] as List? ?? [];
-          final locations = stats['locations'] as List? ?? [];
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.dashboard,
-                    color: AppConstants.primaryColor,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'نظرة سريعة على المكتبة',
-                    style: GoogleFonts.cairo(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppConstants.textColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickStatItem(
-                      'إجمالي الكتب',
-                      '$totalBooks',
-                      Icons.library_books,
-                      AppConstants.primaryColor,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildQuickStatItem(
-                      'التصنيفات',
-                      '${categories.length}',
-                      Icons.category,
-                      AppConstants.secondaryColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickStatItem(
-                      'المؤلفون',
-                      '${authors.length}',
-                      Icons.person,
-                      AppConstants.accentColor,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildQuickStatItem(
-                      'المواقع',
-                      '${locations.length}',
-                      Icons.location_on,
-                      Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
-        loading: () => Column(
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.dashboard,
-                  color: AppConstants.primaryColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'جاري تحميل الإحصائيات...',
-                  style: GoogleFonts.cairo(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppConstants.textColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
-          ],
-        ),
-        error: (error, _) => Column(
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 32,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'خطأ في تحميل الإحصائيات',
-              style: GoogleFonts.cairo(
-                fontSize: 14,
-                color: Colors.red,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickStatItem(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.cairo(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
+          // Section Title
+          if (!isCompact)
+            Text(
+              'الإجراءات الرئيسية',
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.textColor,
+              ),
             ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.cairo(
-              fontSize: 12,
-              color: AppConstants.hintColor,
-            ),
-            textAlign: TextAlign.center,
+          if (!isCompact) const SizedBox(height: 16),
+
+          // Action Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionCard(
+                  context,
+                  title: AppConstants.addBook,
+                  subtitle: 'إضافة كتاب جديد إلى المكتبة',
+                  icon: Icons.add_circle,
+                  color: AppConstants.secondaryColor,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddBookScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildActionCard(
+                  context,
+                  title: AppConstants.viewLibrary,
+                  subtitle: 'استعراض وبحث في الكتب',
+                  icon: Icons.library_books,
+                  color: AppConstants.primaryColor,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const LibraryBrowserScreen()),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                context,
-                title: AppConstants.addBook,
-                subtitle: 'إضافة كتاب جديد إلى المكتبة',
-                icon: Icons.add_circle,
-                color: AppConstants.secondaryColor,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddBookScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildActionCard(
-                context,
-                title: AppConstants.viewLibrary,
-                subtitle: 'استعراض وبحث في الكتب',
-                icon: Icons.library_books,
-                color: AppConstants.primaryColor,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const LibraryBrowserScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: _buildActionCard(
-            context,
-            title: 'إحصائيات المكتبة',
-            subtitle: 'عرض تفصيلي للإحصائيات والتحليلات',
-            icon: Icons.analytics,
-            color: AppConstants.accentColor,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StatisticsScreen()),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -423,57 +412,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        height: isSmallScreen ? 120 : 130,
+        padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
         decoration: BoxDecoration(
-          color: AppConstants.cardColor,
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.1),
+              color.withOpacity(0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: color.withOpacity(0.1),
               blurRadius: 10,
-              offset: const Offset(0, 2),
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.arrow_back_ios,
-                  color: AppConstants.hintColor,
-                  size: 16,
-                ),
-              ],
+            Container(
+              padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: isSmallScreen ? 24 : 28),
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: GoogleFonts.cairo(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppConstants.textColor,
+            SizedBox(height: isSmallScreen ? 8 : 10),
+            FittedBox(
+              child: Text(
+                title,
+                style: GoogleFonts.cairo(
+                  fontSize: isSmallScreen ? 14 : 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.textColor,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: GoogleFonts.cairo(
-                fontSize: 12,
-                color: AppConstants.hintColor,
+            SizedBox(height: isSmallScreen ? 2 : 4),
+            Flexible(
+              child: Text(
+                subtitle,
+                style: GoogleFonts.cairo(
+                  fontSize: isSmallScreen ? 10 : 11,
+                  color: AppConstants.hintColor,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

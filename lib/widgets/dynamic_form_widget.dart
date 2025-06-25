@@ -54,7 +54,18 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           field.type == FieldType.phone ||
           field.type == FieldType.url ||
           field.type == FieldType.password ||
-          field.type == FieldType.checkbox) {
+          field.type == FieldType.checkbox ||
+          field.type == FieldType.date ||
+          field.type == FieldType.time ||
+          field.type == FieldType.datetime ||
+          field.type == FieldType.radio ||
+          field.type == FieldType.slider ||
+          field.type == FieldType.rating ||
+          field.type == FieldType.color ||
+          field.type == FieldType.file ||
+          field.type == FieldType.image ||
+          field.type == FieldType.barcode ||
+          field.type == FieldType.qrcode) {
         final controller = TextEditingController();
         // Set locked values if available
         if (widget.lockedValues.containsKey(field.name)) {
@@ -95,6 +106,11 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
   Widget _buildFormField(FieldConfig field) {
     final isLockableField = _isLockableField(field.name);
     final isFieldLocked = widget.lockedFields[field.name] ?? false;
+
+    // Check if field should be hidden
+    if (field.hasFeature(FieldFeature.hidden)) {
+      return const SizedBox.shrink();
+    }
 
     Widget fieldWidget;
     switch (field.type) {
@@ -139,20 +155,42 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         fieldWidget = _buildCheckboxField(field);
         break;
       case FieldType.date:
+        fieldWidget = _buildDateField(field);
+        break;
       case FieldType.time:
+        fieldWidget = _buildTimeField(field);
+        break;
       case FieldType.datetime:
+        fieldWidget = _buildDateTimeField(field);
+        break;
       case FieldType.radio:
+        fieldWidget = _buildRadioField(field);
+        break;
       case FieldType.slider:
+        fieldWidget = _buildSliderField(field);
+        break;
       case FieldType.rating:
+        fieldWidget = _buildRatingField(field);
+        break;
       case FieldType.color:
+        fieldWidget = _buildColorField(field);
+        break;
       case FieldType.file:
+        fieldWidget = _buildFileField(field);
+        break;
       case FieldType.image:
+        fieldWidget = _buildImageField(field);
+        break;
       case FieldType.barcode:
+        fieldWidget = _buildBarcodeField(field);
+        break;
       case FieldType.qrcode:
-        // For advanced field types not yet implemented, fall back to text field
-        fieldWidget = _buildTextField(field);
+        fieldWidget = _buildQRCodeField(field);
         break;
     }
+
+    // Apply feature modifications to the field widget
+    fieldWidget = _applyFieldFeatures(field, fieldWidget);
 
     // If lock mode is enabled and this is a lockable field, add lock button
     if (widget.lockModeEnabled && isLockableField) {
@@ -191,6 +229,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
+          onChanged: (value) => _handleFieldInteraction(field, value),
         ),
       ],
     );
@@ -235,6 +274,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
           maxLines: 3,
+          onChanged: (value) => _handleFieldInteraction(field, value),
         ),
       ],
     );
@@ -279,6 +319,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
           maxLines: 5,
+          onChanged: (value) => _handleFieldInteraction(field, value),
         ),
       ],
     );
@@ -495,39 +536,13 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-              style: GoogleFonts.cairo(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppConstants.textColor,
-              ),
-            ),
-            if (isDynamicField) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppConstants.primaryColor.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  'تم الكشف تلقائياً',
-                  style: GoogleFonts.cairo(
-                    fontSize: 10,
-                    color: AppConstants.primaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ],
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -758,6 +773,13 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     final rowOptions = locationData?.rows ?? [];
     final columnOptions = locationData?.columns ?? [];
 
+    // Check for layout features to determine display mode
+    final bool isRowLayout = field.hasFeature(FieldFeature.row);
+    final bool isColLayout = field.hasFeature(FieldFeature.col);
+
+    // Default to grid if no specific layout feature is set
+    final bool useSimpleLayout = isRowLayout || isColLayout;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -769,118 +791,796 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
             color: AppConstants.textColor,
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            // Row selector (صف)
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppConstants.hintColor.withOpacity(0.3),
-                  ),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: _locationRows[field.name],
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  hint: Text(
-                    'الصف',
-                    style: GoogleFonts.cairo(
-                      color: AppConstants.hintColor,
-                    ),
-                  ),
-                  validator: _isRequiredField(field.name)
-                      ? (value) =>
-                          value == null || value.isEmpty ? 'اختر الصف' : null
-                      : null,
-                  items: rowOptions.map((option) {
-                    return DropdownMenuItem<String>(
-                      value: option,
-                      child: Text(
-                        option,
-                        style: GoogleFonts.cairo(),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _locationRows[field.name] = value;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Column selector (عامود)
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppConstants.hintColor.withOpacity(0.3),
-                  ),
-                ),
-                child: DropdownButtonFormField<String>(
-                  value: _locationColumns[field.name],
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  hint: Text(
-                    'العامود',
-                    style: GoogleFonts.cairo(
-                      color: AppConstants.hintColor,
-                    ),
-                  ),
-                  validator: _isRequiredField(field.name)
-                      ? (value) =>
-                          value == null || value.isEmpty ? 'اختر العامود' : null
-                      : null,
-                  items: columnOptions.map((option) {
-                    return DropdownMenuItem<String>(
-                      value: option,
-                      child: Text(
-                        option,
-                        style: GoogleFonts.cairo(),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _locationColumns[field.name] = value;
-                    });
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        // Show combined location preview
-        if (_locationRows[field.name] != null &&
-            _locationColumns[field.name] != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'الموقع: ${_locationRows[field.name]}${_locationColumns[field.name]}',
-              style: GoogleFonts.cairo(
-                fontSize: 12,
+        const SizedBox(height: 16),
+        if (useSimpleLayout)
+          // Simple Row/Column Layout (inline)
+          _buildSimpleLocationLayout(
+              field, rowOptions, columnOptions, isRowLayout)
+        else
+          // Popup Location Selector Button (default)
+          _buildLocationPopupButton(field, rowOptions, columnOptions),
+      ],
+    );
+  }
+
+  Widget _buildSimpleLocationLayout(FieldConfig field, List<String> rowOptions,
+      List<String> columnOptions, bool isRowLayout) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title
+          Row(
+            children: [
+              Icon(
+                Icons.location_on,
                 color: AppConstants.primaryColor,
-                fontWeight: FontWeight.w500,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'اختر موقع الكتاب',
+                style: GoogleFonts.cairo(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (isRowLayout)
+            // Row layout (horizontal)
+            Row(
+              children: [
+                // Column selector
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'العمود',
+                        style: GoogleFonts.cairo(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _locationColumns[field.name],
+                            hint: Text(
+                              'اختر العمود',
+                              style: GoogleFonts.cairo(fontSize: 12),
+                            ),
+                            isExpanded: true,
+                            items: columnOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  child: Text(
+                                    value,
+                                    style: GoogleFonts.cairo(fontSize: 14),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _locationColumns[field.name] = newValue;
+                                if (newValue != null &&
+                                    _locationRows[field.name] != null) {
+                                  _handleFieldInteraction(field,
+                                      '$newValue${_locationRows[field.name]}');
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Row selector
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'الصف',
+                        style: GoogleFonts.cairo(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _locationRows[field.name],
+                            hint: Text(
+                              'اختر الصف',
+                              style: GoogleFonts.cairo(fontSize: 12),
+                            ),
+                            isExpanded: true,
+                            items: rowOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  child: Text(
+                                    value,
+                                    style: GoogleFonts.cairo(fontSize: 14),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _locationRows[field.name] = newValue;
+                                if (newValue != null &&
+                                    _locationColumns[field.name] != null) {
+                                  _handleFieldInteraction(field,
+                                      '${_locationColumns[field.name]}$newValue');
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            // Column layout (vertical)
+            Column(
+              children: [
+                // Column selector
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'العمود',
+                      style: GoogleFonts.cairo(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _locationColumns[field.name],
+                          hint: Text(
+                            'اختر العمود',
+                            style: GoogleFonts.cairo(fontSize: 12),
+                          ),
+                          isExpanded: true,
+                          items: columnOptions.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  value,
+                                  style: GoogleFonts.cairo(fontSize: 14),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _locationColumns[field.name] = newValue;
+                              if (newValue != null &&
+                                  _locationRows[field.name] != null) {
+                                _handleFieldInteraction(field,
+                                    '$newValue${_locationRows[field.name]}');
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Row selector
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'الصف',
+                      style: GoogleFonts.cairo(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _locationRows[field.name],
+                          hint: Text(
+                            'اختر الصف',
+                            style: GoogleFonts.cairo(fontSize: 12),
+                          ),
+                          isExpanded: true,
+                          items: rowOptions.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  value,
+                                  style: GoogleFonts.cairo(fontSize: 14),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _locationRows[field.name] = newValue;
+                              if (newValue != null &&
+                                  _locationColumns[field.name] != null) {
+                                _handleFieldInteraction(field,
+                                    '${_locationColumns[field.name]}$newValue');
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+          const SizedBox(height: 12),
+
+          // Selected location display
+          if (_locationRows[field.name] != null &&
+              _locationColumns[field.name] != null)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppConstants.primaryColor.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: AppConstants.primaryColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'الموقع: ${_locationColumns[field.name]}${_locationRows[field.name]}',
+                    style: GoogleFonts.cairo(
+                      fontSize: 12,
+                      color: AppConstants.primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationPopupButton(
+      FieldConfig field, List<String> rowOptions, List<String> columnOptions) {
+    final hasSelection = _locationRows[field.name] != null &&
+        _locationColumns[field.name] != null;
+    final selectedLocation = hasSelection
+        ? '${_locationColumns[field.name]}${_locationRows[field.name]}'
+        : null;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppConstants.primaryColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () =>
+              _showLocationSelectionPopup(field, rowOptions, columnOptions),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Location icon
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: hasSelection
+                        ? AppConstants.primaryColor.withOpacity(0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.location_on,
+                    color: hasSelection
+                        ? AppConstants.primaryColor
+                        : Colors.grey.shade600,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Location text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hasSelection ? 'الموقع المحدد' : 'اختر موقع الكتاب',
+                        style: GoogleFonts.cairo(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: hasSelection
+                              ? AppConstants.primaryColor
+                              : AppConstants.textColor,
+                        ),
+                      ),
+                      if (hasSelection) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppConstants.primaryColor,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            selectedLocation!,
+                            style: GoogleFonts.cairo(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'اضغط لفتح خريطة المكتبة',
+                          style: GoogleFonts.cairo(
+                            fontSize: 12,
+                            color: AppConstants.hintColor,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Arrow icon
+                Icon(
+                  Icons.keyboard_arrow_left,
+                  color: AppConstants.hintColor,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLocationSelectionPopup(
+      FieldConfig field, List<String> rowOptions, List<String> columnOptions) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.height * 0.8,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_stories,
+                        color: AppConstants.primaryColor,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'اختر موقع الكتاب في المكتبة',
+                          style: GoogleFonts.cairo(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppConstants.primaryColor,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                        color: AppConstants.hintColor,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Library Grid
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.grey.shade50,
+                            Colors.grey.shade100,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppConstants.primaryColor.withOpacity(0.2),
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child:
+                            _buildLibraryGrid(field, rowOptions, columnOptions),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Selected location display
+                  if (_locationRows[field.name] != null &&
+                      _locationColumns[field.name] != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppConstants.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppConstants.primaryColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: AppConstants.primaryColor,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'الموقع المحدد: ',
+                            style: GoogleFonts.cairo(
+                              fontSize: 16,
+                              color: AppConstants.textColor,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppConstants.primaryColor,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_locationColumns[field.name]}${_locationRows[field.name]}',
+                              style: GoogleFonts.cairo(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Action buttons
+                  Row(
+                    children: [
+                      if (_locationRows[field.name] != null &&
+                          _locationColumns[field.name] != null) ...[
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _locationRows[field.name] = null;
+                                _locationColumns[field.name] = null;
+                              });
+                            },
+                            child: Text(
+                              'مسح التحديد',
+                              style: GoogleFonts.cairo(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _locationRows[field.name] != null &&
+                                  _locationColumns[field.name] != null
+                              ? () {
+                                  final location =
+                                      '${_locationColumns[field.name]}${_locationRows[field.name]}';
+                                  _handleFieldInteraction(field, location);
+                                  Navigator.of(context).pop();
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppConstants.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            'تأكيد الاختيار',
+                            style: GoogleFonts.cairo(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-      ],
+        );
+      },
     );
+  }
+
+  Widget _buildLibraryGrid(
+      FieldConfig field, List<String> rowOptions, List<String> columnOptions) {
+    // Create a visual grid that looks like your library
+    final selectedRow = _locationRows[field.name];
+    final selectedCol = _locationColumns[field.name];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          // Column headers (A, B, C, D, E)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Empty corner
+                const SizedBox(width: 40),
+                // Column headers
+                ...columnOptions
+                    .map((col) => Expanded(
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade200,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                col,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ],
+            ),
+          ),
+
+          // Grid rows
+          ...rowOptions
+              .map((row) => Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Row header
+                        Container(
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            border: Border(
+                              right: BorderSide(color: Colors.grey.shade200),
+                            ),
+                          ),
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade200,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                row,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Grid cells
+                        ...columnOptions.map((col) {
+                          final isSelected =
+                              selectedRow == row && selectedCol == col;
+                          return Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _locationRows[field.name] = row;
+                                  _locationColumns[field.name] = col;
+                                  _handleFieldInteraction(field, '$col$row');
+                                });
+                              },
+                              child: Container(
+                                height: double.infinity,
+                                margin: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppConstants.primaryColor
+                                      : _getShelfColor(col, row),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppConstants.primaryColor
+                                            .withOpacity(0.8)
+                                        : Colors.grey.shade300,
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppConstants.primaryColor
+                                                .withOpacity(0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.menu_book,
+                                      size: 20,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$col$row',
+                                      style: GoogleFonts.cairo(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ))
+              .toList(),
+        ],
+      ),
+    );
+  }
+
+  Color _getShelfColor(String col, String row) {
+    // Give different shelf sections different colors like in a real library
+    final colIndex = col.codeUnits[0] - 'A'.codeUnits[0];
+    final rowIndex = int.tryParse(row) ?? 1;
+
+    // Create a pattern of colors similar to book categories
+    if (colIndex % 3 == 0) {
+      return Colors.blue.shade50; // Like blue academic books
+    } else if (colIndex % 3 == 1) {
+      return Colors.green.shade50; // Like green literature books
+    } else {
+      return Colors.purple.shade50; // Like purple reference books
+    }
   }
 
   Widget _buildDropdownField(FieldConfig field) {
@@ -889,39 +1589,13 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-              style: GoogleFonts.cairo(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppConstants.textColor,
-              ),
-            ),
-            if (isDynamicField) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppConstants.primaryColor.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  'تم الكشف تلقائياً',
-                  style: GoogleFonts.cairo(
-                    fontSize: 10,
-                    color: AppConstants.primaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ],
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -993,6 +1667,8 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                   _showAddNewOptionDialog(field);
                 } else {
                   _dropdownValues[field.name] = value;
+                  // Trigger field interaction handlers
+                  _handleFieldInteraction(field, value ?? '');
                 }
               });
             },
@@ -1063,6 +1739,888 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
       ),
     );
+  }
+
+  // Additional field type implementations
+  Widget _buildDateField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+                locale: const Locale('ar'),
+              );
+              if (date != null) {
+                _controllers[field.name]!.text =
+                    '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    color: AppConstants.primaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _controllers[field.name]!.text.isEmpty
+                          ? 'اختر ${field.displayName}'
+                          : _controllers[field.name]!.text,
+                      style: GoogleFonts.cairo(
+                        color: _controllers[field.name]!.text.isEmpty
+                            ? AppConstants.hintColor
+                            : AppConstants.textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final time = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay.now(),
+              );
+              if (time != null) {
+                _controllers[field.name]!.text =
+                    '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    color: AppConstants.primaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _controllers[field.name]!.text.isEmpty
+                          ? 'اختر ${field.displayName}'
+                          : _controllers[field.name]!.text,
+                      style: GoogleFonts.cairo(
+                        color: _controllers[field.name]!.text.isEmpty
+                            ? AppConstants.hintColor
+                            : AppConstants.textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateTimeField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+                locale: const Locale('ar'),
+              );
+              if (date != null) {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (time != null) {
+                  final dateTime = DateTime(
+                      date.year, date.month, date.day, time.hour, time.minute);
+                  _controllers[field.name]!.text =
+                      '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+                }
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event,
+                    color: AppConstants.primaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _controllers[field.name]!.text.isEmpty
+                          ? 'اختر ${field.displayName}'
+                          : _controllers[field.name]!.text,
+                      style: GoogleFonts.cairo(
+                        color: _controllers[field.name]!.text.isEmpty
+                            ? AppConstants.hintColor
+                            : AppConstants.textColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRadioField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: field.options.map((option) {
+              return RadioListTile<String>(
+                title: Text(
+                  option,
+                  style: GoogleFonts.cairo(),
+                ),
+                value: option,
+                groupValue: _controllers[field.name]!.text,
+                onChanged: (value) {
+                  setState(() {
+                    _controllers[field.name]!.text = value ?? '';
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSliderField(FieldConfig field) {
+    double sliderValue = 0.0;
+    try {
+      sliderValue = double.parse(_controllers[field.name]!.text);
+    } catch (e) {
+      sliderValue = 0.0;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'القيمة: ${sliderValue.round()}',
+                        style: GoogleFonts.cairo(
+                          fontWeight: FontWeight.w600,
+                          color: AppConstants.primaryColor,
+                        ),
+                      ),
+                      Text(
+                        '0 - 100',
+                        style: GoogleFonts.cairo(
+                          color: AppConstants.hintColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Slider(
+                    value: sliderValue,
+                    min: 0,
+                    max: 100,
+                    divisions: 100,
+                    activeColor: AppConstants.primaryColor,
+                    onChanged: (value) {
+                      setState(() {
+                        sliderValue = value;
+                        _controllers[field.name]!.text =
+                            value.round().toString();
+                      });
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRatingField(FieldConfig field) {
+    int rating = 0;
+    try {
+      rating = int.parse(_controllers[field.name]!.text);
+    } catch (e) {
+      rating = 0;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                children: [
+                  Text(
+                    'التقييم: $rating/5',
+                    style: GoogleFonts.cairo(
+                      fontWeight: FontWeight.w600,
+                      color: AppConstants.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            rating = index + 1;
+                            _controllers[field.name]!.text = rating.toString();
+                          });
+                        },
+                        child: Icon(
+                          rating > index ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                          size: 32,
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildColorField(FieldConfig field) {
+    Color selectedColor = Colors.blue;
+    try {
+      final colorValue = _controllers[field.name]!.text;
+      if (colorValue.isNotEmpty) {
+        selectedColor = Color(int.parse(colorValue));
+      }
+    } catch (e) {
+      selectedColor = Colors.blue;
+    }
+
+    final colorOptions = [
+      Colors.red,
+      Colors.green,
+      Colors.blue,
+      Colors.yellow,
+      Colors.orange,
+      Colors.purple,
+      Colors.pink,
+      Colors.cyan,
+      Colors.brown,
+      Colors.grey,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: selectedColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'اللون المختار',
+                        style: GoogleFonts.cairo(
+                          color: selectedColor.computeLuminance() > 0.5
+                              ? Colors.black
+                              : Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: colorOptions.map((color) {
+                      final isSelected = color.value == selectedColor.value;
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            selectedColor = color;
+                            _controllers[field.name]!.text =
+                                color.value.toString();
+                          });
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.black
+                                  : Colors.grey.shade300,
+                              width: isSelected ? 3 : 1,
+                            ),
+                          ),
+                          child: isSelected
+                              ? Icon(
+                                  Icons.check,
+                                  color: color.computeLuminance() > 0.5
+                                      ? Colors.black
+                                      : Colors.white,
+                                )
+                              : null,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFileField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              // File picker implementation would go here
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'اختيار الملف - قريباً!',
+                    style: GoogleFonts.cairo(),
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.upload_file,
+                    size: 48,
+                    color: AppConstants.primaryColor,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _controllers[field.name]!.text.isEmpty
+                        ? 'اضغط لاختيار ملف'
+                        : _controllers[field.name]!.text,
+                    style: GoogleFonts.cairo(
+                      color: _controllers[field.name]!.text.isEmpty
+                          ? AppConstants.hintColor
+                          : AppConstants.textColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppConstants.hintColor.withOpacity(0.3),
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              // Image picker implementation would go here
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'اختيار الصورة - قريباً!',
+                    style: GoogleFonts.cairo(),
+                  ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate,
+                    size: 48,
+                    color: AppConstants.primaryColor,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _controllers[field.name]!.text.isEmpty
+                        ? 'اضغط لاختيار صورة'
+                        : _controllers[field.name]!.text,
+                    style: GoogleFonts.cairo(
+                      color: _controllers[field.name]!.text.isEmpty
+                          ? AppConstants.hintColor
+                          : AppConstants.textColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBarcodeField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ArabicFormField(
+                label: '',
+                hint: 'أدخل ${field.displayName} أو امسح الرمز',
+                controller: _controllers[field.name]!,
+                isRequired: _isRequiredField(field.name),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              height: 50,
+              width: 50,
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.qr_code_scanner,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  // Barcode scanner implementation would go here
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'مسح الباركود - قريباً!',
+                        style: GoogleFonts.cairo(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQRCodeField(FieldConfig field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppConstants.textColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ArabicFormField(
+                label: '',
+                hint: 'أدخل ${field.displayName} أو امسح الكود',
+                controller: _controllers[field.name]!,
+                isRequired: _isRequiredField(field.name),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              height: 50,
+              width: 50,
+              decoration: BoxDecoration(
+                color: AppConstants.secondaryColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.qr_code,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  // QR code scanner implementation would go here
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'مسح رمز QR - قريباً!',
+                        style: GoogleFonts.cairo(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _applyFieldFeatures(FieldConfig field, Widget fieldWidget) {
+    // Simply return the original widget without any feature indicators
+    // This removes all the feature badges and indicators for a cleaner UI
+    return fieldWidget;
+  }
+
+  Widget _buildFeaturesSummary() {
+    // Don't show features summary for cleaner UI
+    return const SizedBox.shrink();
+  }
+
+  Color _getFeatureColor(FieldFeature feature) {
+    switch (feature) {
+      case FieldFeature.plus:
+        return Colors.blue;
+      case FieldFeature.md:
+        return Colors.purple;
+      case FieldFeature.long:
+        return Colors.orange;
+      case FieldFeature.required:
+        return Colors.red;
+      case FieldFeature.readonly:
+        return Colors.grey;
+      case FieldFeature.conditional:
+        return Colors.orange;
+      case FieldFeature.validated:
+        return Colors.green;
+      case FieldFeature.formatted:
+        return Colors.blue;
+      case FieldFeature.encrypted:
+        return Colors.red;
+      case FieldFeature.unique:
+        return Colors.purple;
+      case FieldFeature.cached:
+        return Colors.teal;
+      case FieldFeature.searchable:
+        return Colors.indigo;
+      case FieldFeature.sortable:
+        return Colors.brown;
+      case FieldFeature.filterable:
+        return Colors.cyan;
+      case FieldFeature.preview:
+        return Colors.pink;
+      case FieldFeature.rich:
+        return Colors.deepOrange;
+      case FieldFeature.versioned:
+        return Colors.lime.shade700;
+      case FieldFeature.audited:
+        return Colors.amber.shade700;
+      case FieldFeature.localized:
+        return Colors.lightGreen.shade700;
+      case FieldFeature.sync:
+        return Colors.blueGrey;
+      case FieldFeature.offline:
+        return Colors.grey.shade600;
+      case FieldFeature.backup:
+        return Colors.deepPurple;
+      case FieldFeature.realtime:
+        return Colors.green.shade600;
+      case FieldFeature.export:
+      case FieldFeature.import:
+        return Colors.orange.shade600;
+      case FieldFeature.bulk:
+        return Colors.indigo.shade600;
+      case FieldFeature.indexed:
+        return Colors.teal.shade600;
+      case FieldFeature.calculated:
+        return Colors.purple.shade600;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getFeatureDisplayName(FieldFeature feature) {
+    switch (feature) {
+      case FieldFeature.plus:
+        return 'إضافة خيارات';
+      case FieldFeature.md:
+        return 'تنسيق';
+      case FieldFeature.long:
+        return 'نص طويل';
+      case FieldFeature.required:
+        return 'مطلوب';
+      case FieldFeature.readonly:
+        return 'قراءة فقط';
+      case FieldFeature.conditional:
+        return 'شرطي';
+      case FieldFeature.validated:
+        return 'محقق';
+      case FieldFeature.formatted:
+        return 'منسق';
+      case FieldFeature.encrypted:
+        return 'مشفر';
+      case FieldFeature.unique:
+        return 'فريد';
+      case FieldFeature.cached:
+        return 'محفوظ مؤقتاً';
+      case FieldFeature.searchable:
+        return 'قابل للبحث';
+      case FieldFeature.sortable:
+        return 'قابل للترتيب';
+      case FieldFeature.filterable:
+        return 'قابل للتصفية';
+      case FieldFeature.preview:
+        return 'معاينة';
+      case FieldFeature.rich:
+        return 'نص غني';
+      case FieldFeature.versioned:
+        return 'متتبع الإصدارات';
+      case FieldFeature.audited:
+        return 'مدقق';
+      case FieldFeature.localized:
+        return 'متعدد اللغات';
+      case FieldFeature.sync:
+        return 'متزامن';
+      case FieldFeature.offline:
+        return 'يعمل بلا إنترنت';
+      case FieldFeature.backup:
+        return 'نسخ احتياطي';
+      case FieldFeature.realtime:
+        return 'مباشر';
+      case FieldFeature.export:
+        return 'تصدير';
+      case FieldFeature.import:
+        return 'استيراد';
+      case FieldFeature.bulk:
+        return 'عمليات مجمعة';
+      case FieldFeature.indexed:
+        return 'مفهرس';
+      case FieldFeature.calculated:
+        return 'محسوب';
+      default:
+        return feature.toString();
+    }
   }
 
   bool _isRequiredField(String fieldName) {
@@ -1171,6 +2729,167 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     }
   }
 
+  // Field interaction handlers for features
+  void _handleFieldInteraction(FieldConfig field, String value) {
+    // Handle real-time updates
+    if (field.hasFeature(FieldFeature.realtime)) {
+      _broadcastRealTimeUpdate(field.name, value);
+    }
+
+    // Handle calculated field updates
+    if (field.hasFeature(FieldFeature.calculated)) {
+      _updateCalculatedFields(field.name, value);
+    }
+
+    // Handle conditional field visibility
+    if (field.hasFeature(FieldFeature.conditional)) {
+      _updateConditionalFields(field.name, value);
+    }
+
+    // Handle validation triggers
+    if (field.hasFeature(FieldFeature.validated)) {
+      _triggerValidation(field.name, value);
+    }
+
+    // Handle formatting
+    if (field.hasFeature(FieldFeature.formatted)) {
+      _applyFormatting(field.name, value);
+    }
+  }
+
+  void _broadcastRealTimeUpdate(String fieldName, String value) {
+    // Implement real-time broadcasting logic
+    print('🔴 Real-time update: $fieldName = $value');
+  }
+
+  void _updateCalculatedFields(String fieldName, String value) {
+    // Find dependent calculated fields and update them
+    for (final field in widget.structure.fields) {
+      if (field.hasFeature(FieldFeature.calculated)) {
+        final calculatedValue = _calculateFieldValue(field, _controllers);
+        if (_controllers.containsKey(field.name)) {
+          _controllers[field.name]!.text = calculatedValue;
+        }
+      }
+    }
+  }
+
+  String _calculateFieldValue(
+      FieldConfig field, Map<String, TextEditingController> controllers) {
+    // Simple calculation example - can be extended
+    if (field.name.contains('المجموع') || field.name.contains('Total')) {
+      // Sum numeric fields
+      double sum = 0;
+      controllers.forEach((key, controller) {
+        final value = double.tryParse(controller.text) ?? 0;
+        if (key != field.name && value > 0) {
+          sum += value;
+        }
+      });
+      return sum.toString();
+    }
+
+    if (field.name.contains('العدد') || field.name.contains('Count')) {
+      // Count non-empty fields
+      int count = 0;
+      controllers.forEach((key, controller) {
+        if (key != field.name && controller.text.isNotEmpty) {
+          count++;
+        }
+      });
+      return count.toString();
+    }
+
+    return '';
+  }
+
+  void _updateConditionalFields(String fieldName, String value) {
+    setState(() {
+      // Update conditional field visibility based on value
+      // This would typically be implemented based on specific business rules
+      print('🎯 Conditional update: $fieldName = $value');
+    });
+  }
+
+  void _triggerValidation(String fieldName, String value) {
+    // Advanced validation logic
+    if (value.isEmpty) return;
+
+    // Validate unique fields
+    final field =
+        widget.structure.fields.firstWhere((f) => f.name == fieldName);
+    if (field.hasFeature(FieldFeature.unique)) {
+      _validateUniqueness(fieldName, value);
+    }
+
+    // Custom validation rules
+    _performCustomValidation(fieldName, value);
+  }
+
+  void _validateUniqueness(String fieldName, String value) {
+    // Check against existing data for uniqueness
+    print('🔍 Validating uniqueness for $fieldName: $value');
+  }
+
+  void _performCustomValidation(String fieldName, String value) {
+    // Implement field-specific validation rules
+    print('✅ Custom validation for $fieldName: $value');
+  }
+
+  void _applyFormatting(String fieldName, String value) {
+    final controller = _controllers[fieldName];
+    if (controller == null) return;
+
+    String formattedValue = value;
+
+    // Apply number formatting
+    if (fieldName.contains('رقم') || fieldName.contains('Number')) {
+      formattedValue = _formatNumber(value);
+    }
+
+    // Apply date formatting
+    if (fieldName.contains('تاريخ') || fieldName.contains('Date')) {
+      formattedValue = _formatDate(value);
+    }
+
+    // Apply phone formatting
+    if (fieldName.contains('هاتف') || fieldName.contains('Phone')) {
+      formattedValue = _formatPhone(value);
+    }
+
+    if (formattedValue != value) {
+      controller.text = formattedValue;
+      controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: formattedValue.length),
+      );
+    }
+  }
+
+  String _formatNumber(String value) {
+    final number = double.tryParse(value.replaceAll(',', ''));
+    if (number == null) return value;
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
+  }
+
+  String _formatDate(String value) {
+    // Simple date formatting - could be enhanced
+    if (value.length == 8 && value.contains(RegExp(r'^\d+$'))) {
+      return '${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)}';
+    }
+    return value;
+  }
+
+  String _formatPhone(String value) {
+    final cleanNumber = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanNumber.length >= 10) {
+      return '${cleanNumber.substring(0, 3)}-${cleanNumber.substring(3, 6)}-${cleanNumber.substring(6)}';
+    }
+    return value;
+  }
+
   void _clearUnlockedFields() {
     // Clear text controllers for unlocked fields
     for (final entry in _controllers.entries) {
@@ -1211,6 +2930,70 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     });
   }
 
+  Widget _wrapWithRowIndicator(FieldConfig field, Widget fieldWidget) {
+    return Column(
+      children: [
+        fieldWidget,
+        Container(
+          margin: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.view_stream, size: 12, color: Colors.blue),
+              const SizedBox(width: 4),
+              Text(
+                'صف',
+                style: GoogleFonts.cairo(
+                  fontSize: 10,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _wrapWithColIndicator(FieldConfig field, Widget fieldWidget) {
+    return Column(
+      children: [
+        fieldWidget,
+        Container(
+          margin: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.green.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.view_column, size: 12, color: Colors.green),
+              const SizedBox(width: 4),
+              Text(
+                'عمود',
+                style: GoogleFonts.cairo(
+                  fontSize: 10,
+                  color: Colors.green,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -1244,7 +3027,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'نموذج ديناميكي ذكي',
+                  'إضافة كتاب جديد',
                   style: GoogleFonts.cairo(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1253,13 +3036,15 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'تم إنشاء هذا النموذج تلقائياً وتحسينه بناءً على بياناتك',
+                  'املأ البيانات التالية لإضافة كتاب جديد إلى المكتبة',
                   style: GoogleFonts.cairo(
                     fontSize: 14,
                     color: AppConstants.hintColor,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 12),
+                _buildFeaturesSummary(),
               ],
             ),
           ),

@@ -10,6 +10,7 @@ class ArabicFormField extends StatelessWidget {
   final int maxLines;
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
 
   const ArabicFormField({
     super.key,
@@ -20,6 +21,7 @@ class ArabicFormField extends StatelessWidget {
     this.maxLines = 1,
     this.keyboardType = TextInputType.text,
     this.validator,
+    this.onChanged,
   });
 
   @override
@@ -86,6 +88,7 @@ class ArabicFormField extends StatelessWidget {
               ),
             ),
             validator: validator ?? (isRequired ? _defaultValidator : null),
+            onChanged: onChanged,
           ),
         ),
       ],

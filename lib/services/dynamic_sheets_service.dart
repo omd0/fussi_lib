@@ -214,16 +214,24 @@ class DynamicSheetsService {
       final columnValues = keySheetData.getColumnValues(header);
       final explicitFieldType = keySheetData.getFieldType(header);
 
-      // Skip completely empty columns
-      if (columnValues.isEmpty) {
-        print('   ⚠️ Skipping empty field: "$header"');
+      // Skip completely empty columns ONLY if they don't have explicit field types
+      if (columnValues.isEmpty && explicitFieldType.isEmpty) {
+        print('   ⚠️ Skipping empty field with no explicit type: "$header"');
         continue;
       }
 
-      print('   📋 Found ${columnValues.length} unique values');
+      // Allow fields with explicit types even if no sample data
+      if (columnValues.isEmpty && explicitFieldType.isNotEmpty) {
+        print(
+            '   🎯 Field "$header" has no sample data but has explicit type "$explicitFieldType" - including it');
+      } else {
+        print('   📋 Found ${columnValues.length} unique values');
+      }
 
-      // Handle location components specially
-      if (_isLocationComponent(header, columnValues)) {
+      print('   🎯 Explicit field type: "$explicitFieldType"');
+
+      // Handle location components specially - BUT only for actual location fields
+      if (_isLocationComponent(header, columnValues, explicitFieldType)) {
         print('   🗺️ Detected location component: "$header"');
         locationData =
             _handleLocationComponent(header, columnValues, locationData);
@@ -364,8 +372,35 @@ class DynamicSheetsService {
           .trim();
     }
 
+    // Check for "required" feature
+    if (input.contains('required') ||
+        input.contains('مطلوب') ||
+        input.contains('إجباري')) {
+      features.add(FieldFeature.required);
+      baseType = baseType
+          .replaceAll(RegExp(r'\s*required\s*'), ' ')
+          .replaceAll('مطلوب', '')
+          .replaceAll('إجباري', '')
+          .trim();
+    }
+
     // Normalize base type
     FieldType normalizedType = _normalizeBaseFieldType(baseType);
+
+    // Add automatic features for specific field types
+    if (baseType.contains('book_title') ||
+        baseType.contains('اسم الكتاب') ||
+        baseType.contains('title')) {
+      // Book titles are typically searchable and required
+      if (!features.contains(FieldFeature.searchable)) {
+        features.add(FieldFeature.searchable);
+      }
+      if (!features.contains(FieldFeature.required)) {
+        features.add(FieldFeature.required);
+      }
+      print(
+          '   📚 Book title field detected - added searchable and required features');
+    }
 
     print(
         '   🎯 Parsed "$userInput" → type: "${normalizedType.name}", features: ${features.map((f) => f.name).join(', ')}');
@@ -401,10 +436,23 @@ class DynamicSheetsService {
       return FieldType.autocomplete;
     }
 
+    // Book title field variations - FIXED: Use autocomplete for better UX
+    if (input == 'book_title' ||
+        input == 'book title' ||
+        input == 'اسم الكتاب' ||
+        input == 'عنوان الكتاب' ||
+        input == 'title') {
+      print(
+          '   🎯 BOOK TITLE field detected! Using autocomplete for better UX');
+      return FieldType.autocomplete; // Changed from text to autocomplete
+    }
+
     // Location compound field variations
     if (input == 'location' ||
         input == 'موقع' ||
-        input == 'location_compound') {
+        input == 'location_compound' ||
+        input == 'location row' ||
+        input == 'location col') {
       return FieldType.locationCompound;
     }
 
@@ -414,10 +462,26 @@ class DynamicSheetsService {
   }
 
   /// Check if a column represents a location component (row/column)
-  bool _isLocationComponent(String header, Set<String> values) {
+  bool _isLocationComponent(
+      String header, Set<String> values, String explicitFieldType) {
     final lowerHeader = header.toLowerCase();
+    final lowerFieldType = explicitFieldType.toLowerCase();
 
-    // Check header patterns
+    // First check explicit field type - if it says location, it's a location component
+    if (lowerFieldType.contains('location')) {
+      print(
+          '   🎯 Location component detected by field type: "$explicitFieldType"');
+      return true;
+    }
+
+    // If explicit field type is something else (like book_title), DON'T treat as location
+    if (explicitFieldType.isNotEmpty && !lowerFieldType.contains('location')) {
+      print(
+          '   ✋ Field has explicit non-location type "$explicitFieldType", not treating as location');
+      return false;
+    }
+
+    // Check header patterns only if no explicit field type
     if (lowerHeader.contains('صف') ||
         lowerHeader.contains('row') ||
         lowerHeader.contains('عامود') ||

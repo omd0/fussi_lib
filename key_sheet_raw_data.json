@@ -14,13 +14,13 @@
       "ملاحظة"
     ],
     [
-      "location",
-      "location",
+      "location row",
+      "location col",
       "dropdown plus",
-      "autocomplete",
+      "book_title",
       "autocomplete",
       "text",
-      "text md",
+      "text long",
       "autocomplete"
     ],
     [
