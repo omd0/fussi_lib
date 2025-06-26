@@ -1,0 +1,25 @@
+🚀 Fussi Library v1.1.2 - Enhanced Arabic Library Management
+
+✨ What's New:
+• Enhanced field system with better validation
+• Improved Arabic text handling and RTL support
+• Faster data loading and processing
+• Better form layouts and responsive design
+• Enhanced Google Sheets integration
+• Improved error handling and user feedback
+
+🎯 Key Features:
+• Arabic-first interface with native RTL support
+• Google Sheets integration for data management
+• Offline-first with local database storage
+• P2P networking for data sharing between devices
+• Dynamic form generation based on data structure
+• Barcode scanning for book management
+
+📚 Perfect for libraries, schools, and book collectors who need modern Arabic-friendly management tools.
+
+🔧 Technical Improvements:
+• Optimized database queries for better performance
+• Enhanced caching mechanisms
+• Better memory management for large datasets
+• Improved synchronization with cloud services 
