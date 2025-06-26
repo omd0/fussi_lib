@@ -461,7 +461,7 @@ class DynamicSheetsService {
     return FieldType.text;
   }
 
-  /// Check if a column represents a location component (row/column)
+  /// Check if a column represents a location component (row/column/room)
   bool _isLocationComponent(
       String header, Set<String> values, String explicitFieldType) {
     final lowerHeader = header.toLowerCase();
@@ -486,7 +486,11 @@ class DynamicSheetsService {
         lowerHeader.contains('row') ||
         lowerHeader.contains('عامود') ||
         lowerHeader.contains('عمود') ||
-        lowerHeader.contains('column')) {
+        lowerHeader.contains('column') ||
+        lowerHeader.contains('غرفة') ||
+        lowerHeader.contains('room') ||
+        lowerHeader.contains('قاعة') ||
+        lowerHeader.contains('hall')) {
       return true;
     }
 
@@ -506,6 +510,7 @@ class DynamicSheetsService {
 
     List<String> rows = existingLocationData?.rows ?? [];
     List<String> columns = existingLocationData?.columns ?? [];
+    List<String> rooms = existingLocationData?.rooms ?? [];
 
     if (lowerHeader.contains('صف') || lowerHeader.contains('row')) {
       rows = valuesList;
@@ -517,9 +522,16 @@ class DynamicSheetsService {
       columns = valuesList;
       print(
           '   🗺️ Stored ${valuesList.length} column values: ${valuesList.join(', ')}');
+    } else if (lowerHeader.contains('غرفة') ||
+        lowerHeader.contains('room') ||
+        lowerHeader.contains('قاعة') ||
+        lowerHeader.contains('hall')) {
+      rooms = valuesList;
+      print(
+          '   🏢 Stored ${valuesList.length} room values: ${valuesList.join(', ')}');
     }
 
-    return LocationData(rows: rows, columns: columns);
+    return LocationData(rows: rows, columns: columns, rooms: rooms);
   }
 
   // Get available options for a specific field using data models

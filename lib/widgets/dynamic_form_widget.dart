@@ -37,6 +37,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
   final Map<String, String?> _locationRows = {}; // For compound location fields
   final Map<String, String?> _locationColumns =
       {}; // For compound location fields
+  final Map<String, String?> _locationRooms = {}; // For room selection
 
   @override
   void initState() {
@@ -82,9 +83,22 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         if (field.type == FieldType.dropdown) {
           _dropdownValues[entry.key] = entry.value;
         } else if (field.type == FieldType.locationCompound) {
-          // Parse compound location (e.g., "B5" -> row "B", column "5")
+          // Parse compound location (e.g., "Room1-B5" -> room "Room1", row "B", column "5")
           final value = entry.value;
-          if (value.length >= 2) {
+          if (value.contains('-')) {
+            final parts = value.split('-');
+            if (parts.length == 2) {
+              _locationRooms[entry.key] = parts[0];
+              final locationPart = parts[1];
+              if (locationPart.length >= 2) {
+                final row = locationPart.substring(0, 1);
+                final col = locationPart.substring(1);
+                _locationRows[entry.key] = row;
+                _locationColumns[entry.key] = col;
+              }
+            }
+          } else if (value.length >= 2) {
+            // Legacy format (e.g., "B5" -> row "B", column "5")
             final row = value.substring(0, 1);
             final col = value.substring(1);
             _locationRows[entry.key] = row;
@@ -772,6 +786,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     final locationData = widget.structure.locationData;
     final rowOptions = locationData?.rows ?? [];
     final columnOptions = locationData?.columns ?? [];
+    final roomOptions = locationData?.rooms ?? [];
 
     // Check for layout features to determine display mode
     final bool isRowLayout = field.hasFeature(FieldFeature.row);
@@ -795,16 +810,17 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         if (useSimpleLayout)
           // Simple Row/Column Layout (inline)
           _buildSimpleLocationLayout(
-              field, rowOptions, columnOptions, isRowLayout)
+              field, rowOptions, columnOptions, roomOptions, isRowLayout)
         else
           // Popup Location Selector Button (default)
-          _buildLocationPopupButton(field, rowOptions, columnOptions),
+          _buildLocationPopupButton(
+              field, rowOptions, columnOptions, roomOptions),
       ],
     );
   }
 
   Widget _buildSimpleLocationLayout(FieldConfig field, List<String> rowOptions,
-      List<String> columnOptions, bool isRowLayout) {
+      List<String> columnOptions, List<String> roomOptions, bool isRowLayout) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1106,13 +1122,22 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     );
   }
 
-  Widget _buildLocationPopupButton(
-      FieldConfig field, List<String> rowOptions, List<String> columnOptions) {
-    final hasSelection = _locationRows[field.name] != null &&
+  Widget _buildLocationPopupButton(FieldConfig field, List<String> rowOptions,
+      List<String> columnOptions, List<String> roomOptions) {
+    final hasRoomSelection =
+        roomOptions.isNotEmpty && _locationRooms[field.name] != null;
+    final hasLocationSelection = _locationRows[field.name] != null &&
         _locationColumns[field.name] != null;
-    final selectedLocation = hasSelection
-        ? '${_locationColumns[field.name]}${_locationRows[field.name]}'
-        : null;
+    final hasSelection = hasLocationSelection;
+
+    String? selectedLocation;
+    if (hasSelection) {
+      final baseLocation =
+          '${_locationColumns[field.name]}${_locationRows[field.name]}';
+      selectedLocation = hasRoomSelection
+          ? '${_locationRooms[field.name]}-$baseLocation'
+          : baseLocation;
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -1217,183 +1242,211 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              height: MediaQuery.of(context).size.height * 0.8,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  // Header
-                  Row(
+        // Create local state variables for the dialog
+        String? localSelectedRow = _locationRows[field.name];
+        String? localSelectedCol = _locationColumns[field.name];
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  height: MediaQuery.of(context).size.height * 0.8,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
                     children: [
-                      Icon(
-                        Icons.auto_stories,
-                        color: AppConstants.primaryColor,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'اختر موقع الكتاب في المكتبة',
-                          style: GoogleFonts.cairo(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppConstants.primaryColor,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
-                        color: AppConstants.hintColor,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Library Grid
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.grey.shade50,
-                            Colors.grey.shade100,
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppConstants.primaryColor.withOpacity(0.2),
-                          width: 2,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child:
-                            _buildLibraryGrid(field, rowOptions, columnOptions),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Selected location display
-                  if (_locationRows[field.name] != null &&
-                      _locationColumns[field.name] != null) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppConstants.primaryColor.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      // Header
+                      Row(
                         children: [
                           Icon(
-                            Icons.check_circle,
+                            Icons.auto_stories,
                             color: AppConstants.primaryColor,
-                            size: 24,
+                            size: 28,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'الموقع المحدد: ',
-                            style: GoogleFonts.cairo(
-                              fontSize: 16,
-                              color: AppConstants.textColor,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppConstants.primaryColor,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                          const SizedBox(width: 12),
+                          Expanded(
                             child: Text(
-                              '${_locationColumns[field.name]}${_locationRows[field.name]}',
+                              'اختر موقع الكتاب في المكتبة',
                               style: GoogleFonts.cairo(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: AppConstants.primaryColor,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close),
+                            color: AppConstants.hintColor,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Library Grid
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.grey.shade50,
+                                Colors.grey.shade100,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppConstants.primaryColor.withOpacity(0.2),
+                              width: 2,
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: _buildLibraryGridForDialog(
+                                field,
+                                rowOptions,
+                                columnOptions,
+                                localSelectedRow,
+                                localSelectedCol, (row, col) {
+                              // Update both dialog state and main widget state
+                              setDialogState(() {
+                                localSelectedRow = row;
+                                localSelectedCol = col;
+                              });
+                              setState(() {
+                                _locationRows[field.name] = row;
+                                _locationColumns[field.name] = col;
+                              });
+                              _handleFieldInteraction(field, '$col$row');
+                            }),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Selected location display
+                      if (localSelectedRow != null &&
+                          localSelectedCol != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppConstants.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppConstants.primaryColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: AppConstants.primaryColor,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'الموقع المحدد: ',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 16,
+                                  color: AppConstants.textColor,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppConstants.primaryColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$localSelectedCol$localSelectedRow',
+                                  style: GoogleFonts.cairo(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Action buttons
+                      Row(
+                        children: [
+                          if (localSelectedRow != null &&
+                              localSelectedCol != null) ...[
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () {
+                                  setDialogState(() {
+                                    localSelectedRow = null;
+                                    localSelectedCol = null;
+                                  });
+                                  setState(() {
+                                    _locationRows[field.name] = null;
+                                    _locationColumns[field.name] = null;
+                                  });
+                                },
+                                child: Text(
+                                  'مسح التحديد',
+                                  style: GoogleFonts.cairo(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: localSelectedRow != null &&
+                                      localSelectedCol != null
+                                  ? () {
+                                      final location =
+                                          '$localSelectedCol$localSelectedRow';
+                                      _handleFieldInteraction(field, location);
+                                      Navigator.of(context).pop();
+                                    }
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppConstants.primaryColor,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                'تأكيد الاختيار',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Action buttons
-                  Row(
-                    children: [
-                      if (_locationRows[field.name] != null &&
-                          _locationColumns[field.name] != null) ...[
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _locationRows[field.name] = null;
-                                _locationColumns[field.name] = null;
-                              });
-                            },
-                            child: Text(
-                              'مسح التحديد',
-                              style: GoogleFonts.cairo(
-                                color: Colors.red,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _locationRows[field.name] != null &&
-                                  _locationColumns[field.name] != null
-                              ? () {
-                                  final location =
-                                      '${_locationColumns[field.name]}${_locationRows[field.name]}';
-                                  _handleFieldInteraction(field, location);
-                                  Navigator.of(context).pop();
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppConstants.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(
-                            'تأكيد الاختيار',
-                            style: GoogleFonts.cairo(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -1405,6 +1458,9 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
     final selectedRow = _locationRows[field.name];
     final selectedCol = _locationColumns[field.name];
 
+    // Dynamically detect which data should go where based on the actual content
+    final layoutInfo = _detectLayoutFromData(rowOptions, columnOptions);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1413,7 +1469,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
       ),
       child: Column(
         children: [
-          // Column headers (A, B, C, D, E)
+          // Top headers - dynamically determined
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
@@ -1427,9 +1483,9 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
               children: [
                 // Empty corner
                 const SizedBox(width: 40),
-                // Column headers
-                ...columnOptions
-                    .map((col) => Expanded(
+                // Top headers - dynamically assigned
+                ...layoutInfo['topHeaders']
+                    .map<Widget>((header) => Expanded(
                           child: Center(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -1439,7 +1495,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                col,
+                                header,
                                 style: GoogleFonts.cairo(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -1454,9 +1510,9 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
             ),
           ),
 
-          // Grid rows
-          ...rowOptions
-              .map((row) => Container(
+          // Grid rows - dynamically determined
+          ...layoutInfo['sideHeaders']
+              .map<Widget>((sideHeader) => Container(
                     height: 60,
                     decoration: BoxDecoration(
                       border: Border(
@@ -1465,7 +1521,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                     ),
                     child: Row(
                       children: [
-                        // Row header
+                        // Side header - dynamically assigned
                         Container(
                           width: 40,
                           decoration: BoxDecoration(
@@ -1483,7 +1539,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                row,
+                                sideHeader,
                                 style: GoogleFonts.cairo(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -1494,16 +1550,23 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                           ),
                         ),
                         // Grid cells
-                        ...columnOptions.map((col) {
-                          final isSelected =
-                              selectedRow == row && selectedCol == col;
+                        ...layoutInfo['topHeaders'].map<Widget>((topHeader) {
+                          // Determine which is row and which is column based on layout
+                          final actualRow =
+                              layoutInfo['rowIsTop'] ? topHeader : sideHeader;
+                          final actualCol =
+                              layoutInfo['rowIsTop'] ? sideHeader : topHeader;
+
+                          final isSelected = selectedRow == actualRow &&
+                              selectedCol == actualCol;
                           return Expanded(
                             child: InkWell(
                               onTap: () {
                                 setState(() {
-                                  _locationRows[field.name] = row;
-                                  _locationColumns[field.name] = col;
-                                  _handleFieldInteraction(field, '$col$row');
+                                  _locationRows[field.name] = actualRow;
+                                  _locationColumns[field.name] = actualCol;
+                                  _handleFieldInteraction(
+                                      field, '$actualCol$actualRow');
                                 });
                               },
                               child: Container(
@@ -1512,7 +1575,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppConstants.primaryColor
-                                      : _getShelfColor(col, row),
+                                      : _getShelfColor(actualCol, actualRow),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected
@@ -1544,7 +1607,7 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '$col$row',
+                                      '$actualCol$actualRow',
                                       style: GoogleFonts.cairo(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
@@ -1566,6 +1629,296 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ],
       ),
     );
+  }
+
+  Widget _buildLibraryGridForDialog(
+      FieldConfig field,
+      List<String> rowOptions,
+      List<String> columnOptions,
+      String? selectedRow,
+      String? selectedCol,
+      Function(String row, String col) onLocationSelected) {
+    // Create a visual grid that looks like your library - for dialog
+
+    // Dynamically detect which data should go where based on the actual content
+    final layoutInfo = _detectLayoutFromData(rowOptions, columnOptions);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          // Top headers - dynamically determined
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Empty corner
+                const SizedBox(width: 40),
+                // Top headers - dynamically assigned
+                ...layoutInfo['topHeaders']
+                    .map<Widget>((header) => Expanded(
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade200,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                header,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ],
+            ),
+          ),
+
+          // Grid rows - dynamically determined
+          ...layoutInfo['sideHeaders']
+              .map<Widget>((sideHeader) => Container(
+                    height: 60,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Side header - dynamically assigned
+                        Container(
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            border: Border(
+                              right: BorderSide(color: Colors.grey.shade200),
+                            ),
+                          ),
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade200,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                sideHeader,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Grid cells
+                        ...layoutInfo['topHeaders'].map<Widget>((topHeader) {
+                          // Determine which is row and which is column based on layout
+                          final actualRow =
+                              layoutInfo['rowIsTop'] ? topHeader : sideHeader;
+                          final actualCol =
+                              layoutInfo['rowIsTop'] ? sideHeader : topHeader;
+
+                          final isSelected = selectedRow == actualRow &&
+                              selectedCol == actualCol;
+                          return Expanded(
+                            child: InkWell(
+                              onTap: () {
+                                onLocationSelected(actualRow, actualCol);
+                              },
+                              child: Container(
+                                height: double.infinity,
+                                margin: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppConstants.primaryColor
+                                      : _getShelfColor(actualCol, actualRow),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppConstants.primaryColor
+                                            .withOpacity(0.8)
+                                        : Colors.grey.shade300,
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppConstants.primaryColor
+                                                .withOpacity(0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.menu_book,
+                                      size: 20,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$actualCol$actualRow',
+                                      style: GoogleFonts.cairo(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ))
+              .toList(),
+        ],
+      ),
+    );
+  }
+
+  /// Follow field type definitions from Google Sheet
+  Map<String, dynamic> _detectLayoutFromData(
+      List<String> rowOptions, List<String> columnOptions) {
+    // Follow the explicit field types from Google Sheet instead of guessing
+
+    // Default layout
+    List<String> topHeaders = rowOptions;
+    List<String> sideHeaders = columnOptions;
+    bool rowIsTop = true;
+
+    // Check what field types we have from the sheet structure
+    bool hasRowFieldType = false;
+    bool hasColFieldType = false;
+    String? rowFieldSource;
+    String? colFieldSource;
+
+    // Look at the structure to find location field sources
+    final locationData = widget.structure.locationData;
+    if (locationData != null) {
+      // The field source information should come from the dynamic sheets service
+      // For now, we'll use a heuristic based on naming patterns that match the service
+
+      // Check if we can determine from the structure which field is which
+      for (final field in widget.structure.fields) {
+        if (field.keySheetColumn != null) {
+          final columnName = field.keySheetColumn!.toLowerCase();
+
+          // Check for row field indicators
+          if (columnName.contains('صف') || columnName.contains('row')) {
+            hasRowFieldType = true;
+            rowFieldSource = field.keySheetColumn;
+            print(
+                '🎯 Found ROW field type from column: ${field.keySheetColumn}');
+          }
+
+          // Check for column field indicators
+          if (columnName.contains('عامود') ||
+              columnName.contains('عمود') ||
+              columnName.contains('column') ||
+              columnName.contains('col')) {
+            hasColFieldType = true;
+            colFieldSource = field.keySheetColumn;
+            print(
+                '🎯 Found COLUMN field type from column: ${field.keySheetColumn}');
+          }
+        }
+      }
+    }
+
+    // Follow Google Sheet field type definitions:
+    // - If we have explicit field types, use them
+    // - "row" field data should display as it's meant to be in the physical layout
+    // - "column" field data should display as it's meant to be in the physical layout
+
+    if (hasRowFieldType && hasColFieldType) {
+      // We have explicit field types - follow them exactly
+      // The service already sorted them correctly into rowOptions and columnOptions
+      // So we just need to display them in the most intuitive way for a library grid
+
+      // Typically in libraries:
+      // - Shorter sequences go on the side (usually letters: A,B,C,D,E)
+      // - Longer sequences go on top (usually numbers: 1,2,3,4,5,6,7,8)
+
+      if (rowOptions.length <= columnOptions.length) {
+        // Row data (likely letters) on side, Column data (likely numbers) on top
+        topHeaders = columnOptions;
+        sideHeaders = rowOptions;
+        rowIsTop = false;
+        print(
+            '📊 Field-type layout: ROW data (${rowOptions.length}) → SIDE, COLUMN data (${columnOptions.length}) → TOP');
+      } else {
+        // Row data (likely numbers) on top, Column data (likely letters) on side
+        topHeaders = rowOptions;
+        sideHeaders = columnOptions;
+        rowIsTop = true;
+        print(
+            '📊 Field-type layout: ROW data (${rowOptions.length}) → TOP, COLUMN data (${columnOptions.length}) → SIDE');
+      }
+    } else {
+      // Fallback: No explicit field types found, use data pattern detection
+      final rowHasLetters =
+          rowOptions.any((r) => RegExp(r'^[A-Za-z]+$').hasMatch(r));
+      final colHasNumbers =
+          columnOptions.any((c) => RegExp(r'^\d+$').hasMatch(c));
+
+      if (rowHasLetters && colHasNumbers) {
+        // Letters on side, numbers on top
+        topHeaders = columnOptions;
+        sideHeaders = rowOptions;
+        rowIsTop = false;
+      } else {
+        // Keep default
+        topHeaders = rowOptions;
+        sideHeaders = columnOptions;
+        rowIsTop = true;
+      }
+      print('📊 Fallback layout: Using data pattern detection');
+    }
+
+    print('🎯 Final layout based on field types:');
+    print(
+        '   Top headers (${topHeaders.length}): ${topHeaders.take(3).join(', ')}${topHeaders.length > 3 ? '...' : ''}');
+    print(
+        '   Side headers (${sideHeaders.length}): ${sideHeaders.take(3).join(', ')}${sideHeaders.length > 3 ? '...' : ''}');
+    print('   Row data is on top: $rowIsTop');
+
+    return {
+      'topHeaders': topHeaders,
+      'sideHeaders': sideHeaders,
+      'rowIsTop': rowIsTop,
+    };
   }
 
   Color _getShelfColor(String col, String row) {
