@@ -144,9 +144,9 @@ Welcome to the Fussi Library documentation index. This guide directs you to all 
 - **[دليل التثبيت](user/INSTALLATION_GUIDE.md)** - خطوات التثبيت والإعداد
 
 ### الإصدارات
-- **[ملاحظات الإصدار v1.0.0](../release/RELEASE_NOTES_v1.0.0.md)** - ميزات الإصدار الأول
-- **[ملاحظات الإصدار v1.1.0](../release/RELEASE_NOTES_v1.1.0.md)** - تحديثات الإصدار الثاني
-- **[دليل رفع التطبيق](../release/UPLOAD_READY_v1.1.0.md)** - معلومات الإصدار الجاهز
+- **[ملاحظات الإصدار v0.1.16](../release/RELEASE_NOTES_v0.1.16.md)** - إعادة هيكلة الخدمات والتوثيق المحسن
+- **[ملاحظات الإصدار v0.1.15](../release/RELEASE_NOTES_v0.1.15.md)** - إعادة هيكلة المشروع الكبرى
+- **[دليل رفع التطبيق](../release/UPLOAD_READY_v0.1.16.md)** - معلومات الإصدار الجاهز
 
 </div>
 
@@ -155,9 +155,9 @@ Welcome to the Fussi Library documentation index. This guide directs you to all 
 - **[Installation Guide](user/INSTALLATION_GUIDE.md)** - Installation and setup steps
 
 ### Releases
-- **[Release Notes v1.0.0](../release/RELEASE_NOTES_v1.0.0.md)** - First release features
-- **[Release Notes v1.1.0](../release/RELEASE_NOTES_v1.1.0.md)** - Second release updates
-- **[Upload Ready Guide](../release/UPLOAD_READY_v1.1.0.md)** - Ready release information
+- **[Release Notes v0.1.16](../release/RELEASE_NOTES_v0.1.16.md)** - Service Refactoring and Enhanced Documentation
+- **[Release Notes v0.1.15](../release/RELEASE_NOTES_v0.1.15.md)** - Major Project Architecture Overhaul
+- **[Upload Ready Guide](../release/UPLOAD_READY_v0.1.16.md)** - Ready release information
 
 ---
 

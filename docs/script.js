@@ -102,5 +102,21 @@ document.addEventListener('DOMContentLoaded', function() {
     scrollToTopBtn.addEventListener('click', function() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    // Version info display
+    const versionElements = document.querySelectorAll('[data-version]');
+    versionElements.forEach(el => {
+        el.textContent = 'v0.1.16';
+    });
+
+    // Dynamic release date
+    const releaseDateElements = document.querySelectorAll('[data-release-date]');
+    releaseDateElements.forEach(el => {
+        el.textContent = 'يونيو 2025';
+    });
+
+    // Console log for developers
+    console.log('🚀 Fussi Library v0.1.16 - Service Refactoring and Enhanced Documentation');
+    console.log('📚 Built with ❤️ for Beit Al-Fussi Library');
+    console.log('🔗 GitHub: https://github.com/omd0/fussi_lib');
 }); 
-document.head.appendChild(style); 
