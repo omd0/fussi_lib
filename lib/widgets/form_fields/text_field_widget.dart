@@ -4,7 +4,7 @@ import '../../constants/app_constants.dart';
 import '../../models/field_config.dart';
 import '../arabic_form_field.dart';
 
-/// Text field widget component extracted from dynamic_form_widget
+/// Text field widget component extracted from adaptive_form_widget
 class TextFieldWidget extends StatelessWidget {
   final FieldConfig field;
   final TextEditingController? controller;

@@ -5,7 +5,7 @@ import 'local_database_service.dart';
 
 enum P2PMode { host, client, scanning, disconnected }
 
-class EnhancedP2PService {
+class P2PService {
   final LocalDatabaseService _localDb = LocalDatabaseService();
 
   FlutterP2pHost? _host;

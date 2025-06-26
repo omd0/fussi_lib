@@ -29,13 +29,9 @@ class GoogleSheetsService {
 
       _sheetsApi = SheetsApi(client);
       _isInitialized = true;
-      print('Google Sheets service initialized successfully');
       return true;
     } catch (e) {
-      print('Failed to initialize Google Sheets service: $e');
-      if (e is TimeoutException) {
-        print('Timeout while initializing Google Sheets service');
-      }
+      _lastError = 'Failed to initialize: $e';
       return false;
     }
   }
@@ -61,13 +57,9 @@ class GoogleSheetsService {
           )
           .timeout(_timeout);
 
-      print('Book added successfully to Google Sheets');
       return true;
     } catch (e) {
-      print('Failed to add book: $e');
-      if (e is TimeoutException) {
-        print('Timeout while adding book to Google Sheets');
-      }
+      _lastError = 'Failed to add book: $e';
       return false;
     }
   }
@@ -75,53 +67,29 @@ class GoogleSheetsService {
   // Get all books from the sheet with timeout and error handling
   Future<List<List<String>>?> getAllBooks() async {
     try {
-      print('🔍 DEBUG: Starting getAllBooks()');
-      print('🔍 DEBUG: Spreadsheet ID: ${AppConstants.spreadsheetId}');
-      print('🔍 DEBUG: Range: ${AppConstants.sheetRange}');
-
       if (_sheetsApi == null) {
-        print('❌ DEBUG: Sheets API is null, initializing...');
         final initialized = await initialize();
         if (!initialized) {
-          print('❌ DEBUG: Failed to initialize Sheets API');
           return null;
         }
-        print('✅ DEBUG: Sheets API initialized successfully');
       }
 
-      print('🔄 DEBUG: Making API call to get values...');
       final response = await _sheetsApi!.spreadsheets.values
           .get(AppConstants.spreadsheetId, AppConstants.sheetRange)
           .timeout(const Duration(seconds: 30));
 
-      print('📊 DEBUG: API Response received');
-      print('📊 DEBUG: Response values type: ${response.values?.runtimeType}');
-      print('📊 DEBUG: Response values length: ${response.values?.length}');
-
       if (response.values != null && response.values!.isNotEmpty) {
-        print('✅ DEBUG: Found ${response.values!.length} rows');
-
-        // Log first few rows for debugging
-        for (int i = 0; i < response.values!.length && i < 3; i++) {
-          final row = response.values![i];
-          print('📝 DEBUG: Row $i (${row.length} columns): ${row.join(' | ')}');
-        }
-
         return response.values!
             .map((row) =>
                 List<String>.from(row.map((cell) => cell?.toString() ?? '')))
             .toList();
       } else {
-        print('⚠️ DEBUG: No data found in response');
         return [];
       }
     } on TimeoutException catch (e) {
-      print('⏰ DEBUG: Timeout error: $e');
       _lastError = 'انتهت مهلة الاتصال - تحقق من الإنترنت';
       return null;
     } catch (e) {
-      print('❌ DEBUG: Error in getAllBooks: $e');
-      print('❌ DEBUG: Error type: ${e.runtimeType}');
       _lastError = e.toString();
       return null;
     }
@@ -145,7 +113,7 @@ class GoogleSheetsService {
 
       return true;
     } catch (e) {
-      print('Connection test failed: $e');
+      _lastError = 'Connection test failed: $e';
       return false;
     }
   }
@@ -156,7 +124,6 @@ class GoogleSheetsService {
       await rootBundle.load('assets/credentials/service-account-key.json');
       return true;
     } catch (e) {
-      print('Credentials file not found: $e');
       return false;
     }
   }
@@ -167,6 +134,5 @@ class GoogleSheetsService {
 
   void _setError(String error) {
     _lastError = error;
-    print('GoogleSheetsService Error: $error');
   }
 }

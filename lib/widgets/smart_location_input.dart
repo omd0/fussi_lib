@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
-import '../models/book.dart';
 
 /// Smart location input widget using DATA MODEL approach
 /// Handles location selection with rows, columns, and rooms

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../services/hybrid_library_service.dart';
-import '../constants/app_constants.dart';
+import '../services/library_sync_service.dart';
 
 class P2PStatusWidget extends StatefulWidget {
-  final HybridLibraryService hybridService;
+  final LibrarySyncService hybridService;
 
   const P2PStatusWidget({
     super.key,

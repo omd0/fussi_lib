@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../models/book.dart';
 import '../models/form_structure.dart';
-import '../services/hybrid_library_service.dart';
-import '../services/enhanced_dynamic_service.dart';
+import '../services/library_sync_service.dart';
+import '../services/sheet_structure_service.dart';
 import '../widgets/field_builder_widget.dart';
 import '../widgets/location_selector_widget.dart';
 import '../widgets/physical_bookshelf_widget.dart';
@@ -18,7 +18,7 @@ class AddBookScreen extends ConsumerStatefulWidget {
 }
 
 class _AddBookScreenState extends ConsumerState<AddBookScreen> {
-  final HybridLibraryService _hybridService = HybridLibraryService();
+  final LibrarySyncService _hybridService = LibrarySyncService();
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
@@ -52,7 +52,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
       await _hybridService.initialize();
 
       // Use the enhanced dynamic service
-      final enhancedService = ref.read(enhancedDynamicServiceProvider);
+      final enhancedService = ref.read(sheetStructureServiceProvider);
       _formStructure = await enhancedService.getFormStructure();
 
       if (_formStructure != null) {

@@ -1,14 +1,12 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../services/cache_service.dart';
-import '../services/enhanced_dynamic_service.dart';
+import '../services/sheet_structure_service.dart';
 import '../models/book.dart';
 import 'edit_book_screen.dart';
 import '../widgets/location_selector_widget.dart';
-import '../widgets/physical_bookshelf_widget.dart';
 
 enum SortBy { name, author, category, location }
 

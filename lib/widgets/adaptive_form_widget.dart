@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
-import '../models/book.dart';
 import '../models/field_config.dart';
 import '../models/form_structure.dart';
-import '../models/location_data.dart';
 import '../utils/arabic_text_utils.dart';
 import '../widgets/arabic_form_field.dart';
 import '../services/local_database_service.dart';
 
-class DynamicFormWidget extends StatefulWidget {
+class AdaptiveFormWidget extends StatefulWidget {
   final FormStructure structure;
   final Function(Map<String, String>) onFormSubmit;
   final bool isLoading;
@@ -18,7 +16,7 @@ class DynamicFormWidget extends StatefulWidget {
   final Map<String, String> lockedValues;
   final Function(String) onToggleFieldLock;
 
-  const DynamicFormWidget({
+  const AdaptiveFormWidget({
     super.key,
     required this.structure,
     required this.onFormSubmit,
@@ -30,10 +28,10 @@ class DynamicFormWidget extends StatefulWidget {
   });
 
   @override
-  State<DynamicFormWidget> createState() => _DynamicFormWidgetState();
+  State<AdaptiveFormWidget> createState() => _AdaptiveFormWidgetState();
 }
 
-class _DynamicFormWidgetState extends State<DynamicFormWidget> {
+class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, String?> _dropdownValues = {};
@@ -1445,185 +1443,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildLibraryGrid(
-      FieldConfig field, List<String> rowOptions, List<String> columnOptions) {
-    // Create a visual grid that looks like your library
-    final selectedRow = _locationRows[field.name];
-    final selectedCol = _locationColumns[field.name];
-
-    // Dynamically detect which data should go where based on the actual content
-    final layoutInfo = _detectLayoutFromData(rowOptions, columnOptions);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          // Top headers - dynamically determined
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                // Empty corner
-                const SizedBox(width: 40),
-                // Top headers - dynamically assigned
-                ...layoutInfo['topHeaders']
-                    .map<Widget>((header) => Expanded(
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade200,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                header,
-                                style: GoogleFonts.cairo(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade800,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ))
-                    .toList(),
-              ],
-            ),
-          ),
-
-          // Grid rows - dynamically determined
-          ...layoutInfo['sideHeaders']
-              .map<Widget>((sideHeader) => Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // Side header - dynamically assigned
-                        Container(
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            border: Border(
-                              right: BorderSide(color: Colors.grey.shade200),
-                            ),
-                          ),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade200,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                sideHeader,
-                                style: GoogleFonts.cairo(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade800,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Grid cells
-                        ...layoutInfo['topHeaders'].map<Widget>((topHeader) {
-                          // Determine which is row and which is column based on layout
-                          final actualRow =
-                              layoutInfo['rowIsTop'] ? topHeader : sideHeader;
-                          final actualCol =
-                              layoutInfo['rowIsTop'] ? sideHeader : topHeader;
-
-                          final isSelected = selectedRow == actualRow &&
-                              selectedCol == actualCol;
-                          return Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _locationRows[field.name] = actualRow;
-                                  _locationColumns[field.name] = actualCol;
-                                  _handleFieldInteraction(
-                                      field, '$actualCol$actualRow');
-                                });
-                              },
-                              child: Container(
-                                height: double.infinity,
-                                margin: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppConstants.primaryColor
-                                      : _getShelfColor(actualCol, actualRow),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? AppConstants.primaryColor
-                                            .withOpacity(0.8)
-                                        : Colors.grey.shade300,
-                                    width: isSelected ? 2 : 1,
-                                  ),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: AppConstants.primaryColor
-                                                .withOpacity(0.3),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.menu_book,
-                                      size: 20,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '$actualCol$actualRow',
-                                      style: GoogleFonts.cairo(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-                  ))
-              .toList(),
-        ],
-      ),
     );
   }
 

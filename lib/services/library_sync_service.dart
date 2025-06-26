@@ -4,14 +4,14 @@ import '../models/book.dart';
 import '../constants/app_constants.dart';
 import 'google_sheets_service.dart';
 import 'local_database_service.dart';
-import 'enhanced_p2p_service.dart';
+import 'p2p_service.dart';
 
 enum ConnectionMode { online, offline, p2p }
 
-class HybridLibraryService {
+class LibrarySyncService {
   final GoogleSheetsService _googleSheetsService = GoogleSheetsService();
   final LocalDatabaseService _localDbService = LocalDatabaseService();
-  final EnhancedP2PService _p2pService = EnhancedP2PService();
+  final P2PService _p2pService = P2PService();
 
   ConnectionMode _currentMode = ConnectionMode.offline;
   bool _isInitialized = false;
@@ -316,14 +316,10 @@ class HybridLibraryService {
 
   // Get all books - prioritizes local data
   Future<List<Book>> getBooksAsObjects() async {
-    print('🔍 DEBUG: Starting getBooksAsObjects()');
-    print('🔍 DEBUG: Current mode: $_currentMode');
-
     try {
       List<Book> books = [];
 
       if (_currentMode == ConnectionMode.online) {
-        print('🌐 DEBUG: Attempting to load from Google Sheets...');
         try {
           _updateStatus('تحميل الكتب من Google Sheets...');
 
@@ -331,18 +327,10 @@ class HybridLibraryService {
               .getAllBooks()
               .timeout(const Duration(seconds: 45));
 
-          print(
-              '📊 DEBUG: Raw data from Google Sheets: ${rawData?.length} rows');
-
           if (rawData != null && rawData.isNotEmpty) {
-            print(
-                '✅ DEBUG: Processing ${rawData.length} rows from Google Sheets');
-
             // Skip header row and process data
             for (int i = 1; i < rawData.length; i++) {
               final row = rawData[i];
-              print('📝 DEBUG: Processing row $i: ${row.length} columns');
-              print('📝 DEBUG: Row data: ${row.join(' | ')}');
 
               // Handle both 6-column data rows and 7-column header
               if (row.length >= 6) {
@@ -374,76 +362,54 @@ class HybridLibraryService {
                   // Only add books with valid name and author
                   if (book.bookName.trim().isNotEmpty &&
                       book.authorName.trim().isNotEmpty) {
-                    print(
-                        '📚 DEBUG: Created book: ${book.bookName} by ${book.authorName}');
                     books.add(book);
-                  } else {
-                    print(
-                        '⚠️ DEBUG: Skipping row $i - empty book name or author');
                   }
                 } catch (e) {
-                  print('❌ DEBUG: Error creating book from row $i: $e');
+                  // Skip problematic rows
                 }
-              } else {
-                print(
-                    '⚠️ DEBUG: Row $i has insufficient columns (${row.length})');
               }
             }
-
-            print(
-                '✅ DEBUG: Successfully processed ${books.length} books from Google Sheets');
 
             // Save to local for offline access
             try {
               await _saveOnlineBooksToLocal(rawData.cast<List<String>>());
-              print('💾 DEBUG: Saved books to local database');
             } catch (e) {
-              print('⚠️ DEBUG: Failed to save to local: $e');
+              // Continue if saving fails
             }
 
             _updateStatus('تم تحميل ${books.length} كتاب من Google Sheets');
           } else {
-            print('⚠️ DEBUG: No data received from Google Sheets');
             _updateStatus('لا توجد بيانات في Google Sheets');
           }
         } catch (e) {
-          print('❌ DEBUG: Error loading from Google Sheets: $e');
           _updateStatus('خطأ في تحميل الكتب من Google Sheets: $e');
 
           // Fallback to local database
-          print('🔄 DEBUG: Falling back to local database...');
           books = await _loadFromLocalDatabase();
         }
       } else {
-        print('💾 DEBUG: Loading from local database (mode: $_currentMode)');
         books = await _loadFromLocalDatabase();
       }
 
-      print('🏁 DEBUG: Returning ${books.length} books total');
       return books;
     } catch (e) {
-      print('❌ DEBUG: Critical error in getBooksAsObjects: $e');
       _updateStatus('خطأ في تحميل الكتب: $e');
       return [];
     }
   }
 
-  // Helper method to load from local database with debugging
+  // Helper method to load from local database
   Future<List<Book>> _loadFromLocalDatabase() async {
     try {
-      print('💾 DEBUG: Loading from local database...');
       final localBooks = await _localDbService.getAllBooks();
-      print('💾 DEBUG: Found ${localBooks.length} books in local database');
 
       final books = localBooks.map((bookMap) {
-        print('📝 DEBUG: Converting local book: ${bookMap['bookName']}');
         return Book.fromMap(bookMap);
       }).toList();
 
       _updateStatus('تم تحميل ${books.length} كتاب من قاعدة البيانات المحلية');
       return books;
     } catch (e) {
-      print('❌ DEBUG: Error loading from local database: $e');
       _updateStatus('لا يمكن الوصول إلى قاعدة البيانات المحلية');
       return [];
     }

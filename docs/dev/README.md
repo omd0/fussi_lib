@@ -107,6 +107,10 @@ lib/
 └── utils/           # أدوات مساعدة
 ```
 
+> 📋 **للحصول على دليل شامل لهيكل المشروع، راجع [PROJECT_STRUCTURE_GUIDE.md](./PROJECT_STRUCTURE_GUIDE.md)**
+> 
+> **For a comprehensive project structure guide, see [PROJECT_STRUCTURE_GUIDE.md](./PROJECT_STRUCTURE_GUIDE.md)**
+
 ### اختبار التطبيق
 <div class="code-block">
 
@@ -114,11 +118,11 @@ lib/
 # تشغيل الاختبارات
 flutter test
 
-# اختبار Google Sheets
-dart test_google_sheets.dart
+# تشغيل تحليل الكود
+flutter analyze
 
-# اختبار الكشف الديناميكي
-dart test_dynamic_detection.dart
+# إعادة توليد الملفات المولدة
+dart run build_runner build --delete-conflicting-outputs
 ```
 
 </div>

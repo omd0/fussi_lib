@@ -38,7 +38,7 @@ class AppConstants {
   ];
 
   // App Strings
-  static const String appTitle = 'مكتبة بيت الفصي الرقمية';
+  static const String appTitle = 'مكتبة فصي';
   static const String welcome = 'أهلاً وسهلاً في مكتبة بيت الفصي';
   static const String addBook = 'إضافة كتاب جديد';
   static const String viewLibrary = 'عرض المكتبة';

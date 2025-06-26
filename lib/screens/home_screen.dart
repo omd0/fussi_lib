@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 import '../models/book.dart';
 import '../services/cache_service.dart';
-import '../services/hybrid_library_service.dart';
+import '../services/library_sync_service.dart';
 import 'add_book_screen.dart';
 import 'library_browser_screen.dart';
 
@@ -168,7 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         gradient: LinearGradient(
           colors: [
             AppConstants.primaryColor,
-            AppConstants.primaryColor.withOpacity(0.8),
+            AppConstants.primaryColor.withValues(alpha: 0.8),
             AppConstants.accentColor,
           ],
           begin: Alignment.topCenter,
@@ -180,7 +180,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppConstants.primaryColor.withOpacity(0.2),
+            color: AppConstants.primaryColor.withValues(alpha: 0.2),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -194,10 +194,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             width: isCompact ? 60 : 70,
             height: isCompact ? 60 : 70,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 width: 1.5,
               ),
             ),
@@ -228,7 +228,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             'نظام إدارة مكتبة متطور وذكي',
             style: GoogleFonts.cairo(
               fontSize: isCompact ? 13 : 15,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,

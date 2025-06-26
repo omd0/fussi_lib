@@ -4,13 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:googleapis/sheets/v4.dart';
 import 'package:googleapis_auth/auth_io.dart';
-import '../constants/app_constants.dart';
-import '../models/book.dart';
 import '../models/field_config.dart';
 import '../models/form_structure.dart';
 import '../models/key_sheet_data.dart';
 import '../models/location_data.dart';
-import '../utils/arabic_text_utils.dart';
 
 /// Browsing structure for filter and search capabilities
 class BrowsingStructure {
@@ -50,11 +47,11 @@ class EnhancedStructureData {
   }
 }
 
-/// Enhanced Dynamic Service that provides structure for both forms and browsing
-class EnhancedDynamicService {
-  static final _instance = EnhancedDynamicService._internal();
-  factory EnhancedDynamicService() => _instance;
-  EnhancedDynamicService._internal();
+/// Sheet Structure Service that provides structure for both forms and browsing
+class SheetStructureService {
+  static final _instance = SheetStructureService._internal();
+  factory SheetStructureService() => _instance;
+  SheetStructureService._internal();
 
   EnhancedStructureData? _cachedStructure;
   Timer? _refreshTimer;
@@ -99,12 +96,9 @@ class EnhancedDynamicService {
   /// Load fresh structure from Google Sheets
   Future<EnhancedStructureData?> _loadFreshStructure() async {
     try {
-      print('🔄 Loading enhanced structure from Google Sheets...');
-
       // Load key sheet data
       final keySheetData = await _loadKeySheetData();
       if (keySheetData == null) {
-        print('❌ No key sheet data found');
         return _getFallbackStructure();
       }
 
@@ -121,10 +115,8 @@ class EnhancedDynamicService {
       // Set up auto-refresh timer
       _setupAutoRefresh();
 
-      print('✅ Enhanced structure loaded successfully');
       return enhancedStructure;
     } catch (e) {
-      print('❌ Error loading enhanced structure: $e');
       return _getFallbackStructure();
     }
   }
@@ -132,8 +124,6 @@ class EnhancedDynamicService {
   /// Load key sheet data for field definitions
   Future<KeySheetData?> _loadKeySheetData() async {
     try {
-      print('🔑 Loading key sheet data...');
-
       final credentialsJson = await rootBundle
           .loadString('assets/credentials/service-account-key.json');
       final credentials =
@@ -161,7 +151,6 @@ class EnhancedDynamicService {
 
       return null;
     } catch (e) {
-      print('⚠️ Could not load key sheet: $e');
       return null;
     }
   }
@@ -169,8 +158,6 @@ class EnhancedDynamicService {
   /// Load actual library data for browsing insights
   Future<List<Map<String, dynamic>>?> _loadLibraryData() async {
     try {
-      print('📚 Loading library data for browsing structure...');
-
       final credentialsJson = await rootBundle
           .loadString('assets/credentials/service-account-key.json');
       final credentials =
@@ -215,7 +202,6 @@ class EnhancedDynamicService {
 
       return null;
     } catch (e) {
-      print('⚠️ Could not load library data: $e');
       return null;
     }
   }
@@ -225,8 +211,6 @@ class EnhancedDynamicService {
     KeySheetData keySheetData,
     List<Map<String, dynamic>>? libraryData,
   ) async {
-    print('🏗️ Building enhanced structure...');
-
     // Build form structure
     final formStructure = await _buildFormStructure(keySheetData);
 
@@ -248,8 +232,6 @@ class EnhancedDynamicService {
 
   /// Build form structure for adding/editing books
   Future<FormStructure> _buildFormStructure(KeySheetData keySheetData) async {
-    print('📝 Building form structure...');
-
     final fields = <FieldConfig>[];
     LocationData? locationData;
 
@@ -308,8 +290,6 @@ class EnhancedDynamicService {
     KeySheetData keySheetData,
     List<Map<String, dynamic>>? libraryData,
   ) async {
-    print('🔍 Building browsing structure...');
-
     final categories = <String>{};
     final locations = <String>{};
     final authors = <String>{};
@@ -632,34 +612,34 @@ class EnhancedDynamicService {
 }
 
 /// Providers for Riverpod integration
-final enhancedDynamicServiceProvider = Provider<EnhancedDynamicService>((ref) {
-  return EnhancedDynamicService();
+final sheetStructureServiceProvider = Provider<SheetStructureService>((ref) {
+  return SheetStructureService();
 });
 
 final enhancedStructureProvider =
     FutureProvider<EnhancedStructureData?>((ref) async {
-  final service = ref.read(enhancedDynamicServiceProvider);
+  final service = ref.read(sheetStructureServiceProvider);
   return await service.getStructure();
 });
 
 final formStructureProvider = FutureProvider<FormStructure?>((ref) async {
-  final service = ref.read(enhancedDynamicServiceProvider);
+  final service = ref.read(sheetStructureServiceProvider);
   return await service.getFormStructure();
 });
 
 final browsingStructureProvider =
     FutureProvider<BrowsingStructure?>((ref) async {
-  final service = ref.read(enhancedDynamicServiceProvider);
+  final service = ref.read(sheetStructureServiceProvider);
   return await service.getBrowsingStructure();
 });
 
 final locationDataProvider = FutureProvider<LocationData?>((ref) async {
-  final service = ref.read(enhancedDynamicServiceProvider);
+  final service = ref.read(sheetStructureServiceProvider);
   return await service.getLocationData();
 });
 
 /// Stream provider for real-time structure updates
 final structureStreamProvider = StreamProvider<EnhancedStructureData?>((ref) {
-  final service = ref.read(enhancedDynamicServiceProvider);
+  final service = ref.read(sheetStructureServiceProvider);
   return service.structureStream;
 });

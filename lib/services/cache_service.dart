@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../models/book.dart';
-import 'hybrid_library_service.dart';
+import 'library_sync_service.dart';
 import 'structure_loader_service.dart';
 
 part 'cache_service.g.dart';
@@ -14,8 +14,8 @@ const Duration _longCacheDuration = Duration(hours: 1);
 
 // Global hybrid service provider
 @riverpod
-HybridLibraryService hybridLibraryService(HybridLibraryServiceRef ref) {
-  final service = HybridLibraryService();
+LibrarySyncService hybridLibraryService(HybridLibraryServiceRef ref) {
+  final service = LibrarySyncService();
 
   // Dispose service when provider is disposed
   ref.onDispose(() => service.dispose());

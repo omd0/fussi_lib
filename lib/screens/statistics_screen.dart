@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../services/cache_service.dart';
-import '../services/hybrid_library_service.dart';
+import '../services/library_sync_service.dart';
 import '../services/structure_loader_service.dart';
 
 class StatisticsScreen extends ConsumerStatefulWidget {
@@ -899,29 +899,6 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   ))
               .toList(),
         ],
-      ),
-    );
-  }
-
-  void _showMessage(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Directionality(
-          textDirection: TextDirection.rtl,
-          child: Text(
-            message,
-            style: GoogleFonts.cairo(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        backgroundColor:
-            isError ? Colors.red.shade400 : AppConstants.secondaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        duration: const Duration(seconds: 3),
       ),
     );
   }

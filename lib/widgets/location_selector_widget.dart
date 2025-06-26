@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
-import '../models/book.dart';
 import '../models/location_data.dart';
-import '../services/enhanced_dynamic_service.dart';
+import '../services/sheet_structure_service.dart';
 
 enum LocationSelectorMode { popup, inline }
 

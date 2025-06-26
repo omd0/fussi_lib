@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
-import '../models/book.dart';
 import '../models/location_data.dart';
-import '../services/enhanced_dynamic_service.dart';
+import '../services/sheet_structure_service.dart';
 
 /// Widget that demonstrates structure loading and caching with location selector
 class StructureLoaderWidget extends ConsumerWidget {
@@ -361,7 +360,7 @@ class StructureLoaderWidget extends ConsumerWidget {
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () async {
-          final service = ref.read(enhancedDynamicServiceProvider);
+          final service = ref.read(sheetStructureServiceProvider);
           await service.refresh();
           if (ref.context.mounted) {
             ScaffoldMessenger.of(ref.context).showSnackBar(

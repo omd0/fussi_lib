@@ -1,6 +1,4 @@
 import 'package:dartarabic/dartarabic.dart';
-import 'dart:math';
-
 import 'dart:math' as math;
 
 /// Utility class for handling Arabic text patterns and matching
@@ -261,8 +259,8 @@ class ArabicTextUtils {
 
       for (int j = 0; j < bLength; j++) {
         final cost = (a[i] == b[j]) ? 0 : 1;
-        v1[j + 1] = min(v1[j] + 1, min(v0[j + 1] + 1, v0[j] + cost));
-        minV1 = min(minV1, v1[j + 1]);
+        v1[j + 1] = math.min(v1[j] + 1, math.min(v0[j + 1] + 1, v0[j] + cost));
+        minV1 = math.min(minV1, v1[j + 1]);
       }
 
       if (minV1 > maxDistance) {
