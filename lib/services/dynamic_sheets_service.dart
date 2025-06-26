@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:googleapis/sheets/v4.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import '../models/book.dart';
+import '../models/field_config.dart';
+import '../models/form_structure.dart';
+import '../models/key_sheet_data.dart';
+import '../models/location_data.dart';
 import '../utils/arabic_text_utils.dart';
 import 'google_sheets_service.dart';
 
@@ -113,40 +117,20 @@ class DynamicSheetsService {
   /// Key sheet is the ONLY source of truth for ALL field definitions
   Future<FormStructure?> analyzeSheetStructure() async {
     try {
-      print(
-          '🔑 Analyzing structure using KEY SHEET as SINGLE SOURCE OF TRUTH...');
-
       // Load key sheet data using proper data model
       final keySheetData = await _loadKeySheetData();
       if (keySheetData == null) {
-        print('❌ No key sheet data found - cannot proceed');
         return null;
       }
-
-      print(
-          '📊 Loaded key sheet with ${keySheetData.dataRows.length} data rows');
-      print('🎯 Headers: ${keySheetData.nonEmptyHeaders.join(' | ')}');
 
       // Build complete structure from key sheet using data models
       final structure = await _buildFormStructure(keySheetData);
 
       _currentStructure = structure;
 
-      print('✅ Structure built ENTIRELY from key sheet using data models!');
-      print('🎯 Total fields detected: ${structure.fields.length}');
-
-      // Debug log all detected fields
-      for (final field in structure.fields) {
-        final optionsInfo = field.options.isNotEmpty
-            ? ' (${field.options.length} options)'
-            : '';
-        print('   📝 ${field.displayName} -> ${field.displayType}$optionsInfo');
-      }
-
       return structure;
     } catch (e, stackTrace) {
-      print('❌ Error analyzing key sheet structure: $e');
-      print('Stack trace: $stackTrace');
+      // Error analyzing key sheet structure
       return null;
     }
   }
@@ -154,8 +138,6 @@ class DynamicSheetsService {
   /// Load key sheet data and return structured data model
   Future<KeySheetData?> _loadKeySheetData() async {
     try {
-      print('🔑 Loading key sheet data using data models...');
-
       final credentialsJson = await rootBundle
           .loadString('assets/credentials/service-account-key.json');
       final credentials =
@@ -179,60 +161,37 @@ class DynamicSheetsService {
             .map((row) => row.map((cell) => cell.toString()).toList())
             .toList();
 
-        print('✅ Raw key sheet loaded: ${rawData.length} rows');
-
         // Convert to structured data model
         final keySheetData = KeySheetData.fromRawData(rawData);
-
-        print('✅ Key sheet data model created:');
-        print('   📋 Headers: ${keySheetData.headers.length}');
-        print('   🎯 Field types: ${keySheetData.fieldTypes.length}');
-        print('   📊 Data rows: ${keySheetData.dataRows.length}');
 
         return keySheetData;
       }
 
       return null;
     } catch (e) {
-      print('⚠️ Could not load key sheet: $e');
+      // Could not load key sheet
       return null;
     }
   }
 
   /// Build form structure using data models instead of raw JSON
   Future<FormStructure> _buildFormStructure(KeySheetData keySheetData) async {
-    print('🏗️ Building form structure using data models...');
-
     final fields = <FieldConfig>[];
     LocationData? locationData;
 
     // Process each column header
     for (final header in keySheetData.nonEmptyHeaders) {
-      print('🔍 Processing field: "$header"');
-
       // Get column data using data model methods
       final columnValues = keySheetData.getColumnValues(header);
       final explicitFieldType = keySheetData.getFieldType(header);
 
       // Skip completely empty columns ONLY if they don't have explicit field types
       if (columnValues.isEmpty && explicitFieldType.isEmpty) {
-        print('   ⚠️ Skipping empty field with no explicit type: "$header"');
         continue;
       }
 
-      // Allow fields with explicit types even if no sample data
-      if (columnValues.isEmpty && explicitFieldType.isNotEmpty) {
-        print(
-            '   🎯 Field "$header" has no sample data but has explicit type "$explicitFieldType" - including it');
-      } else {
-        print('   📋 Found ${columnValues.length} unique values');
-      }
-
-      print('   🎯 Explicit field type: "$explicitFieldType"');
-
       // Handle location components specially - BUT only for actual location fields
       if (_isLocationComponent(header, columnValues, explicitFieldType)) {
-        print('   🗺️ Detected location component: "$header"');
         locationData =
             _handleLocationComponent(header, columnValues, locationData);
         continue; // Don't add as separate field

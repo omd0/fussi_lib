@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../models/book.dart';
+import '../models/form_structure.dart';
 import '../services/hybrid_library_service.dart';
-import '../services/dynamic_sheets_service.dart';
-import '../widgets/dynamic_form_widget.dart';
+import '../services/enhanced_dynamic_service.dart';
+import '../widgets/field_builder_widget.dart';
+import '../widgets/location_selector_widget.dart';
+import '../widgets/physical_bookshelf_widget.dart';
 
 class AddBookScreen extends ConsumerStatefulWidget {
   const AddBookScreen({super.key});
@@ -16,16 +19,14 @@ class AddBookScreen extends ConsumerStatefulWidget {
 
 class _AddBookScreenState extends ConsumerState<AddBookScreen> {
   final HybridLibraryService _hybridService = HybridLibraryService();
-  final DynamicSheetsService _dynamicSheetsService = DynamicSheetsService();
+  final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
-
-  // Lock functionality for fast group adding
+  bool _lockModeEnabled = false;
   final Map<String, bool> _lockedFields = {};
   final Map<String, String> _lockedValues = {};
-  bool _lockModeEnabled = false;
+  final Map<String, TextEditingController> _controllers = {};
 
-  // Dynamic form structure
   FormStructure? _formStructure;
 
   @override
@@ -36,37 +37,57 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
 
   @override
   void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _initializeServices() async {
-    await _hybridService.initialize();
-    await _loadFormStructure();
-  }
-
-  Future<void> _loadFormStructure() async {
-    try {
-      print('🔄 Loading form structure...');
-
-      // Load dynamic structure using new data models
-      final structure = await _dynamicSheetsService.analyzeSheetStructure();
-      if (structure != null) {
-        setState(() {
-          _formStructure = structure;
-        });
-        print('✅ Loaded form structure with ${structure.fields.length} fields');
-      }
-    } catch (e) {
-      print('⚠️ Failed to load form structure: $e');
-    }
-  }
-
-  Future<void> _handleFormSubmit(Map<String, String> formData) async {
     setState(() {
       _isLoading = true;
     });
 
     try {
+      await _hybridService.initialize();
+
+      // Use the enhanced dynamic service
+      final enhancedService = ref.read(enhancedDynamicServiceProvider);
+      _formStructure = await enhancedService.getFormStructure();
+
+      if (_formStructure != null) {
+        // Initialize controllers for all fields
+        for (final field in _formStructure!.fields) {
+          _controllers[field.name] = TextEditingController();
+        }
+      }
+
+      print(
+          '📋 Form structure loaded with ${_formStructure?.fields.length ?? 0} fields');
+    } catch (e) {
+      print('❌ Error initializing services: $e');
+      _showMessage('خطأ في تحميل النظام: $e', isSuccess: false);
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _handleFormSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Collect form data
+      final formData = <String, String>{};
+      for (final entry in _controllers.entries) {
+        formData[entry.key] = entry.value.text.trim();
+      }
+
       // Store locked values before processing
       _updateLockedValues(formData);
 
@@ -81,18 +102,19 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
 
         // Clear form if not in lock mode
         if (!_lockModeEnabled) {
+          _clearForm();
           await Future.delayed(const Duration(seconds: 1));
           if (mounted) {
             Navigator.of(context).pop();
           }
         } else {
-          // In lock mode, just wait a bit for user feedback
+          // In lock mode, clear non-locked fields only
+          _clearNonLockedFields();
           await Future.delayed(const Duration(milliseconds: 800));
         }
       } else if (result['isDuplicate']) {
         // Show duplicate dialog
-        _showDuplicateDialog(
-            _createBookFromFormData(formData), result['message']);
+        _showDuplicateDialog(book, result['message']);
       } else {
         _showMessage(result['message'], isSuccess: false);
       }
@@ -107,16 +129,110 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     }
   }
 
+  Widget _buildEnhancedForm() {
+    if (_formStructure == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppConstants.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'معلومات الكتاب',
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.textColor,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Build each field using FieldBuilderWidget
+            for (final field in _formStructure!.fields) ...[
+              Column(
+                children: [
+                  FieldBuilderWidget(
+                    field: field,
+                    controller: _controllers[field.name],
+                    onChanged: (value) {
+                      // Handle value changes
+                      if (_controllers[field.name] != null) {
+                        _controllers[field.name]!.text = value;
+                      }
+                    },
+                    isRequired: _isRequiredField(field.name),
+                    isLocked: _lockedFields[field.name] ?? false,
+                    options: field.options,
+                    locationData: _formStructure?.locationData,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            // Submit Button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleFormSubmit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConstants.primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 5,
+                  shadowColor: AppConstants.primaryColor.withOpacity(0.4),
+                ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        'إضافة الكتاب',
+                        style: GoogleFonts.cairo(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isRequiredField(String fieldName) {
+    // Fields that are required for book creation
+    return fieldName.contains('اسم الكتاب') ||
+        fieldName.contains('اسم المؤلف') ||
+        fieldName.contains('التصنيف') ||
+        fieldName.contains('موقع');
+  }
+
   Book _createBookFromFormData(Map<String, String> formData) {
+    // Try to find the fields by their display names or keys
     return Book(
-      bookName: formData['اسم الكتاب'] ?? formData['D'] ?? '', // اسم الكتاب
-      authorName: formData['اسم المؤلف'] ?? formData['E'] ?? '', // اسم المؤلف
-      category: formData['التصنيف'] ?? formData['C'] ?? '', // التصنيف
-      libraryLocation: formData['الموقع في المكتبة'] ??
-          formData['A'] ??
-          '', // الموقع في المكتبة
-      briefDescription:
-          formData['مختصر تعريفي'] ?? formData['G'] ?? '', // مختصر تعريفي
+      bookName: formData['اسم الكتاب'] ?? formData['D'] ?? '',
+      authorName: formData['اسم المؤلف'] ?? formData['E'] ?? '',
+      category: formData['التصنيف'] ?? formData['C'] ?? '',
+      libraryLocation: formData['موقع المكتبة'] ?? formData['A'] ?? '',
+      briefDescription: formData['مختصر تعريفي'] ?? formData['G'] ?? '',
     );
   }
 
@@ -129,11 +245,27 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     }
   }
 
+  void _clearForm() {
+    for (final controller in _controllers.values) {
+      controller.clear();
+    }
+  }
+
+  void _clearNonLockedFields() {
+    for (final entry in _controllers.entries) {
+      if (!_isFieldLocked(entry.key)) {
+        entry.value.clear();
+      }
+    }
+  }
+
   void _toggleFieldLock(String fieldName) {
     setState(() {
       _lockedFields[fieldName] = !(_lockedFields[fieldName] ?? false);
       if (!_lockedFields[fieldName]!) {
         _lockedValues.remove(fieldName);
+      } else if (_controllers.containsKey(fieldName)) {
+        _lockedValues[fieldName] = _controllers[fieldName]!.text;
       }
     });
   }
@@ -214,8 +346,7 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
             Navigator.of(context).pop();
           }
         } else {
-          // In lock mode, just wait a bit for user feedback
-          await Future.delayed(const Duration(milliseconds: 800));
+          _clearNonLockedFields();
         }
       } else {
         _showMessage('فشل في إضافة الكتاب', isSuccess: false);
@@ -253,7 +384,19 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
       child: Scaffold(
         backgroundColor: AppConstants.backgroundColor,
         appBar: AppBar(
-          backgroundColor: AppConstants.primaryColor,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppConstants.primaryColor,
+                  AppConstants.secondaryColor,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
             'إضافة كتاب جديد',
@@ -269,29 +412,23 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        body: _formStructure == null
+        body: _isLoading
             ? _buildLoadingWidget()
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    // Lock Mode Toggle Button
-                    _buildLockModeToggle(),
-                    const SizedBox(height: 16),
+            : _formStructure == null
+                ? _buildErrorWidget('فشل في تحميل هيكل البيانات')
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        // Lock Mode Toggle Button
+                        _buildLockModeToggle(),
+                        const SizedBox(height: 16),
 
-                    // Dynamic Form Widget
-                    DynamicFormWidget(
-                      structure: _formStructure!,
-                      onFormSubmit: _handleFormSubmit,
-                      isLoading: _isLoading,
-                      lockModeEnabled: _lockModeEnabled,
-                      lockedFields: _lockedFields,
-                      lockedValues: _lockedValues,
-                      onToggleFieldLock: _toggleFieldLock,
+                        // Enhanced Dynamic Form using the field system
+                        _buildEnhancedForm(),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
       ),
     );
   }
@@ -339,19 +476,91 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
     );
   }
 
+  Widget _buildErrorWidget(String error) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppConstants.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 48,
+              color: Colors.orange,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'فشل في تحميل هيكل البيانات',
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              style: GoogleFonts.cairo(
+                fontSize: 14,
+                color: AppConstants.hintColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                _initializeServices(); // Retry initialization
+              },
+              child: Text(
+                'إعادة المحاولة',
+                style: GoogleFonts.cairo(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLockModeToggle() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: _lockModeEnabled
-            ? AppConstants.primaryColor.withOpacity(0.1)
-            : AppConstants.cardColor,
+        gradient: LinearGradient(
+          colors: _lockModeEnabled
+              ? [
+                  AppConstants.primaryColor.withOpacity(0.1),
+                  AppConstants.primaryColor.withOpacity(0.05)
+                ]
+              : [AppConstants.cardColor, AppConstants.cardColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _lockModeEnabled
-              ? AppConstants.primaryColor
-              : AppConstants.hintColor.withOpacity(0.3),
+              ? AppConstants.primaryColor.withOpacity(0.5)
+              : AppConstants.hintColor.withOpacity(0.2),
         ),
+        boxShadow: _lockModeEnabled
+            ? [
+                BoxShadow(
+                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ]
+            : [],
       ),
       child: Row(
         children: [
@@ -392,6 +601,8 @@ class _AddBookScreenState extends ConsumerState<AddBookScreen> {
             value: _lockModeEnabled,
             onChanged: (value) => _toggleLockMode(),
             activeColor: AppConstants.primaryColor,
+            trackColor: MaterialStateProperty.all(
+                AppConstants.primaryColor.withOpacity(0.3)),
           ),
         ],
       ),

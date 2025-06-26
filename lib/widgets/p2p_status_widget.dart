@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/hybrid_library_service.dart';
+import '../constants/app_constants.dart';
 
 class P2PStatusWidget extends StatefulWidget {
   final HybridLibraryService hybridService;
@@ -84,9 +85,16 @@ class _P2PStatusWidgetState extends State<P2PStatusWidget> {
     return GestureDetector(
       onTap: _showStatusDialog,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.1),
+          gradient: LinearGradient(
+            colors: [
+              statusColor.withOpacity(0.15),
+              statusColor.withOpacity(0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: statusColor.withOpacity(0.3)),
         ),
@@ -125,109 +133,148 @@ class _P2PStatusWidgetState extends State<P2PStatusWidget> {
   void _showStatusDialog() {
     final modeDescription = widget.hybridService.modeDescription;
     final devices = widget.hybridService.discoveredDevices;
+    final mode = widget.hybridService.currentMode;
+
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (mode) {
+      case ConnectionMode.online:
+        statusColor = Colors.green;
+        statusIcon = Icons.cloud_done;
+        break;
+      case ConnectionMode.p2p:
+        statusColor = Colors.blue;
+        statusIcon = Icons.wifi_tethering;
+        break;
+      case ConnectionMode.offline:
+        statusColor = Colors.orange;
+        statusIcon = Icons.cloud_off;
+        break;
+    }
 
     showDialog(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('حالة المزامنة'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
             children: [
-              // Connection status
-              Row(
-                children: [
-                  const Text('الحالة: ',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(modeDescription),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Last status message
-              if (_statusMessage.isNotEmpty) ...[
-                const Text('آخر حالة: ',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(_statusMessage, style: TextStyle(color: Colors.grey[600])),
-                const SizedBox(height: 8),
-              ],
-
-              // Device count
-              Row(
-                children: [
-                  const Text('الأجهزة المكتشفة: ',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text('$_deviceCount'),
-                ],
-              ),
-
-              // Device list
-              if (devices.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('الأجهزة:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                SizedBox(
-                  height: 120,
-                  child: ListView.builder(
-                    itemCount: devices.length,
-                    itemBuilder: (context, index) {
-                      final device = devices[index];
-                      final lastSeen = device['lastSeen'] as DateTime;
-                      final timeDiff = DateTime.now().difference(lastSeen);
-                      final isOnline = timeDiff.inSeconds < 30;
-
-                      return ListTile(
-                        dense: true,
-                        leading: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isOnline ? Colors.green : Colors.red,
-                          ),
-                        ),
-                        title: Text(
-                          device['deviceName'] ?? 'جهاز غير معروف',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          device['address'] ?? '',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.sync, size: 16),
-                              onPressed: isOnline
-                                  ? () => _syncWithDevice(device)
-                                  : null,
-                              tooltip: 'مزامنة',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.send, size: 16),
-                              onPressed: isOnline
-                                  ? () => _sendDataToDevice(device)
-                                  : null,
-                              tooltip: 'إرسال',
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+              Icon(statusIcon, color: statusColor),
+              const SizedBox(width: 8),
+              const Text('حالة المزامنة'),
             ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Connection status
+                Row(
+                  children: [
+                    const Text('الحالة: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(modeDescription),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Last status message
+                if (_statusMessage.isNotEmpty) ...[
+                  const Text('آخر حالة: ',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(_statusMessage,
+                      style: TextStyle(color: Colors.grey[600])),
+                  const SizedBox(height: 8),
+                ],
+
+                // Device count
+                Row(
+                  children: [
+                    const Text('الأجهزة المكتشفة: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('$_deviceCount'),
+                  ],
+                ),
+
+                // Device list
+                if (devices.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('الأجهزة:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      itemCount: devices.length,
+                      itemBuilder: (context, index) {
+                        final device = devices[index];
+                        final lastSeen = device['lastSeen'] as DateTime;
+                        final timeDiff = DateTime.now().difference(lastSeen);
+                        final isOnline = timeDiff.inSeconds < 30;
+
+                        return ListTile(
+                          dense: true,
+                          leading: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isOnline ? Colors.green : Colors.red,
+                            ),
+                          ),
+                          title: Text(
+                            device['deviceName'] ?? 'جهاز غير معروف',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            device['address'] ?? '',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.sync, size: 16),
+                                onPressed: isOnline
+                                    ? () => _syncWithDevice(device)
+                                    : null,
+                                tooltip: 'مزامنة',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.send, size: 16),
+                                onPressed: isOnline
+                                    ? () => _sendDataToDevice(device)
+                                    : null,
+                                tooltip: 'إرسال',
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('إغلاق'),
             ),
+            // ElevatedButton.icon(
+            //   onPressed: () => widget.hybridService.broadcastPresence(),
+            //   icon: const Icon(Icons.cast_connected, size: 16),
+            //   label: const Text('إعلان التواجد'),
+            //   style: ElevatedButton.styleFrom(
+            //     backgroundColor: AppConstants.primaryColor,
+            //     foregroundColor: Colors.white,
+            //   ),
+            // )
           ],
         ),
       ),

@@ -57,7 +57,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Scaffold(
         backgroundColor: AppConstants.backgroundColor,
         appBar: AppBar(
-          backgroundColor: AppConstants.primaryColor,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppConstants.primaryColor,
+                  AppConstants.secondaryColor,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
             AppConstants.appTitle,

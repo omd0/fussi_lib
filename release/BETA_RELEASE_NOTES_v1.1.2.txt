@@ -1,0 +1,40 @@
+🧪 Fussi Library v1.1.2 - Private Beta
+
+Welcome Beta Testers! Thank you for helping improve Fussi Library.
+
+📋 What to Test:
+• Arabic text input and display across all forms
+• Google Sheets synchronization (if you have access)
+• Adding, editing, and managing books
+• Search and filtering functionality
+• Navigation and user interface flow
+• Offline mode capabilities
+• App performance and responsiveness
+
+🎯 Focus Areas:
+• Arabic language support and RTL layout
+• Library management workflow
+• Data validation and error handling
+• Overall user experience and usability
+
+🐛 Known Issues:
+• Performance may vary on older Android devices
+• Some edge cases in data validation may exist
+• Google Sheets integration requires proper setup
+
+📞 How to Provide Feedback:
+• Use the "Send feedback" option in Play Console
+• Report bugs with steps to reproduce
+• Suggest improvements for Arabic text handling
+• Share your experience with library management features
+
+🔍 Testing Tips:
+• Try adding books with Arabic titles and authors
+• Test search with both Arabic and English text
+• Experiment with different screen orientations
+• Test offline functionality by disabling internet
+
+Thank you for your valuable feedback! Your input helps make Fussi Library better for Arabic-speaking library users.
+
+Version: 1.1.2 (5) Beta
+Target: Arabic libraries and educational institutions 

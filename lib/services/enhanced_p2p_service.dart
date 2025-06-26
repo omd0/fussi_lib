@@ -42,43 +42,35 @@ class EnhancedP2PService {
   // P2P Methods - All disabled
   Future<void> initialize() async {
     // P2P disabled - no initialization needed
-    print('P2P Service: Disabled - Using Google Sheets only');
   }
 
   Future<void> startDiscovery() async {
     // P2P disabled
-    print('P2P Discovery: Disabled');
   }
 
   Future<void> stopDiscovery() async {
     // P2P disabled
-    print('P2P Discovery: Already disabled');
   }
 
   Future<void> startAdvertising(String serviceName) async {
     // P2P disabled
-    print('P2P Advertising: Disabled');
   }
 
   Future<void> stopAdvertising() async {
     // P2P disabled
-    print('P2P Advertising: Already disabled');
   }
 
   Future<bool> connectToPeer(String peerId) async {
     // P2P disabled
-    print('P2P Connect: Disabled');
     return false;
   }
 
   Future<void> disconnect() async {
     // P2P disabled
-    print('P2P Disconnect: Already disabled');
   }
 
   Future<bool> sendData(String data) async {
     // P2P disabled
-    print('P2P Send Data: Disabled');
     return false;
   }
 
@@ -89,46 +81,38 @@ class EnhancedP2PService {
 
   Future<void> stop() async {
     // P2P disabled - nothing to stop
-    print('P2P Service: Stop called (already disabled)');
   }
 
   void dispose() {
     // Nothing to dispose for disabled P2P
-    print('P2P Service: Disposed (was disabled)');
   }
 
   Future<void> _checkAndRequestPermissions() async {
     // P2P disabled - no permissions needed
-    print('P2P Permissions: Disabled');
   }
 
   // Start as host mode (create WiFi Direct group)
   Future<void> startHostMode() async {
     // P2P disabled
-    print('P2P Host Mode: Disabled');
   }
 
   // Start as client mode (scan for hosts)
   Future<void> _startClientMode() async {
     // P2P disabled
-    print('P2P Client Mode: Disabled');
   }
 
   Future<void> _startScanning() async {
     // P2P disabled
-    print('P2P Scanning: Disabled');
   }
 
   // Connect to a discovered host
   Future<void> connectToHost(BleDiscoveredDevice device) async {
     // P2P disabled
-    print('P2P Connect to Host: Disabled');
   }
 
   // Stop all connections and streams
   Future<void> _stopAllConnections() async {
     // P2P disabled - nothing to stop
-    print('P2P Stop All Connections: Disabled (nothing to stop)');
   }
 
   void _setMode(P2PMode mode) {

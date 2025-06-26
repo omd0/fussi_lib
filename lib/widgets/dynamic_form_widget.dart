@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../models/book.dart';
+import '../models/field_config.dart';
+import '../models/form_structure.dart';
+import '../models/location_data.dart';
 import '../utils/arabic_text_utils.dart';
 import '../widgets/arabic_form_field.dart';
 import '../services/local_database_service.dart';
@@ -239,7 +242,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -283,7 +285,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName} (يدعم التنسيق)',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -328,7 +329,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -353,7 +353,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -377,7 +376,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -401,7 +399,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -425,7 +422,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
         ),
         const SizedBox(height: 8),
         ArabicFormField(
-          label: '',
           hint: 'أدخل ${field.displayName}',
           controller: _controllers[field.name]!,
           isRequired: _isRequiredField(field.name),
@@ -2747,7 +2743,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           children: [
             Expanded(
               child: ArabicFormField(
-                label: '',
                 hint: 'أدخل ${field.displayName} أو امسح الرمز',
                 controller: _controllers[field.name]!,
                 isRequired: _isRequiredField(field.name),
@@ -2802,7 +2797,6 @@ class _DynamicFormWidgetState extends State<DynamicFormWidget> {
           children: [
             Expanded(
               child: ArabicFormField(
-                label: '',
                 hint: 'أدخل ${field.displayName} أو امسح الكود',
                 controller: _controllers[field.name]!,
                 isRequired: _isRequiredField(field.name),
