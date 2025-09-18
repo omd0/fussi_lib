@@ -6,6 +6,7 @@ import '../models/form_structure.dart';
 import '../utils/arabic_text_utils.dart';
 import '../widgets/arabic_form_field.dart';
 import '../services/local_database_service.dart';
+import 'form_fields/field_label_widget.dart';
 
 class AdaptiveFormWidget extends StatefulWidget {
   final FormStructure structure;
@@ -297,33 +298,12 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-              style: GoogleFonts.cairo(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppConstants.textColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppConstants.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'نص طويل',
-                style: GoogleFonts.cairo(
-                  fontSize: 10,
-                  color: AppConstants.primaryColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
+        FieldLabelWidget(
+          field: field,
+          isRequired: _isRequiredField(field.name),
+          isLocked: false,
+          showIcon: true,
+          showFeatureBadges: true,
         ),
         const SizedBox(height: 8),
         ArabicFormField(
@@ -337,18 +317,22 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
     );
   }
 
+  /// Helper method to build field label consistently
+  Widget _buildFieldLabel(FieldConfig field, {bool isLocked = false}) {
+    return FieldLabelWidget(
+      field: field,
+      isRequired: _isRequiredField(field.name),
+      isLocked: isLocked,
+      showIcon: true,
+      showFeatureBadges: true,
+    );
+  }
+
   Widget _buildNumberField(FieldConfig field) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppConstants.textColor,
-          ),
-        ),
+        _buildFieldLabel(field),
         const SizedBox(height: 8),
         ArabicFormField(
           hint: 'أدخل ${field.displayName}',
@@ -364,14 +348,7 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppConstants.textColor,
-          ),
-        ),
+        _buildFieldLabel(field),
         const SizedBox(height: 8),
         ArabicFormField(
           hint: 'أدخل ${field.displayName}',
@@ -387,14 +364,7 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppConstants.textColor,
-          ),
-        ),
+        _buildFieldLabel(field),
         const SizedBox(height: 8),
         ArabicFormField(
           hint: 'أدخل ${field.displayName}',

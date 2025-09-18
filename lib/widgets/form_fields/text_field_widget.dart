@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../constants/app_constants.dart';
 import '../../models/field_config.dart';
 import '../arabic_form_field.dart';
+import 'field_label_widget.dart';
+import '../features/field_feature_extensions.dart';
 
 /// Text field widget component extracted from adaptive_form_widget
 class TextFieldWidget extends StatelessWidget {
@@ -25,6 +25,17 @@ class TextFieldWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Use the new extension-based system if available
+    if (controller != null) {
+      return field.buildField(
+        controller: controller!,
+        onChanged: onChanged,
+        isRequired: isRequired,
+        showLabel: true,
+      );
+    }
+
+    // Fallback to original implementation
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,13 +47,12 @@ class TextFieldWidget extends StatelessWidget {
   }
 
   Widget _buildLabel() {
-    return Text(
-      '${field.displayName}${isRequired ? ' *' : ''}',
-      style: GoogleFonts.cairo(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: isLocked ? AppConstants.primaryColor : AppConstants.textColor,
-      ),
+    return FieldLabelWidget(
+      field: field,
+      isRequired: isRequired,
+      isLocked: isLocked,
+      showIcon: false, // No icon in text field since it's in the input
+      showFeatureBadges: true,
     );
   }
 
@@ -71,7 +81,6 @@ class TextFieldWidget extends StatelessWidget {
       hint: 'أدخل ${field.displayName}',
       controller: controller!,
       isRequired: isRequired,
-      icon: Icons.text_fields,
       onChanged: onChanged,
     );
   }
@@ -83,7 +92,6 @@ class TextFieldWidget extends StatelessWidget {
       controller: controller!,
       isRequired: isRequired,
       maxLines: field.hasFeature(FieldFeature.long) ? 8 : 4,
-      icon: Icons.description,
       onChanged: onChanged,
     );
   }
@@ -95,7 +103,6 @@ class TextFieldWidget extends StatelessWidget {
       controller: controller!,
       isRequired: isRequired,
       keyboardType: TextInputType.number,
-      icon: Icons.numbers,
       onChanged: onChanged,
     );
   }
@@ -107,7 +114,6 @@ class TextFieldWidget extends StatelessWidget {
       controller: controller!,
       isRequired: isRequired,
       keyboardType: TextInputType.emailAddress,
-      icon: Icons.email,
       onChanged: onChanged,
     );
   }
@@ -119,7 +125,6 @@ class TextFieldWidget extends StatelessWidget {
       controller: controller!,
       isRequired: isRequired,
       keyboardType: TextInputType.phone,
-      icon: Icons.phone,
       onChanged: onChanged,
     );
   }
@@ -131,7 +136,6 @@ class TextFieldWidget extends StatelessWidget {
       controller: controller!,
       isRequired: isRequired,
       keyboardType: TextInputType.url,
-      icon: Icons.link,
       onChanged: onChanged,
     );
   }

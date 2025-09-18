@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../constants/app_constants.dart';
 import '../../models/field_config.dart';
 import '../arabic_form_field.dart';
+import 'field_label_widget.dart';
 
 /// Dropdown field widget component extracted from adaptive_form_widget
 class DropdownFieldWidget extends StatelessWidget {
@@ -34,13 +35,12 @@ class DropdownFieldWidget extends StatelessWidget {
   }
 
   Widget _buildLabel() {
-    return Text(
-      '${field.displayName}${isRequired ? ' *' : ''}',
-      style: GoogleFonts.cairo(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: isLocked ? AppConstants.primaryColor : AppConstants.textColor,
-      ),
+    return FieldLabelWidget(
+      field: field,
+      isRequired: isRequired,
+      isLocked: isLocked,
+      showIcon: false, // No icon in dropdown since it's in the input
+      showFeatureBadges: true,
     );
   }
 
@@ -51,17 +51,7 @@ class DropdownFieldWidget extends StatelessWidget {
       items: field.options,
       onChanged: isLocked ? (_) {} : (String? val) => onChanged(val),
       isRequired: isRequired,
-      icon: _getIconForField(),
     );
-  }
-
-  IconData _getIconForField() {
-    switch (field.type) {
-      case FieldType.dropdown:
-        return Icons.arrow_drop_down;
-      default:
-        return Icons.list;
-    }
   }
 }
 

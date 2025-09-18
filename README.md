@@ -54,7 +54,12 @@ flutter pub get
    - Follow the guide in `assets/credentials/README.md`
    - Add your `service-account-key.json` file to `assets/credentials/`
 
-4. **Run the app**
+4. **Generate code (Required for first run)**
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+5. **Run the app**
 ```bash
 flutter run
 ```
@@ -76,10 +81,12 @@ flutter run
 
 - **Framework**: Flutter 3.x
 - **Language**: Dart
+- **State Management**: Riverpod 3 with code generation
 - **Fonts**: Google Fonts (Cairo)
 - **API**: Google Sheets API v4
 - **Authentication**: Service Account
 - **Architecture**: Clean, modular structure
+- **Code Generation**: Riverpod Generator + Build Runner
 
 ## 📁 Project Structure
 
@@ -112,6 +119,59 @@ The app connects to this Google Sheet:
 | C | اسم الكتاب | Book Name |
 | D | اسم المؤلف | Author Name |
 | E | مختصر تعريفي | Brief Description |
+
+## 🔧 Development
+
+### Code Generation
+
+This project uses **Riverpod Generator** for automatic code generation. The following files require code generation:
+
+- `lib/services/cache_service.dart` → `lib/services/cache_service.g.dart`
+- Other service files with `@riverpod` annotations
+
+#### Running Code Generation
+
+**First time setup:**
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+**Watch mode (for development):**
+```bash
+dart run build_runner watch
+```
+
+**Clean and rebuild:**
+```bash
+dart run build_runner clean
+dart run build_runner build
+```
+
+#### When to Run Code Generation
+
+- After cloning the repository
+- After adding new `@riverpod` providers
+- After modifying existing `@riverpod` providers
+- When you see build errors related to missing `.g.dart` files
+
+#### Troubleshooting Code Generation
+
+If you encounter build errors like:
+```
+Error: Can't use 'lib/services/cache_service.g.dart' as a part, because it has no 'part of' declaration.
+```
+
+Run the code generation command:
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### Dependencies
+
+The project uses these key development dependencies:
+- `build_runner`: ^2.4.7 - Code generation runner
+- `riverpod_generator`: ^2.4.2 - Riverpod code generation
+- `riverpod_lint`: ^2.3.12 - Linting rules for Riverpod
 
 ## 🎨 Design System
 

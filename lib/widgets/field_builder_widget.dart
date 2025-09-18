@@ -6,6 +6,7 @@ import '../models/field_config.dart';
 import '../models/location_data.dart';
 import '../widgets/arabic_form_field.dart';
 import '../widgets/location_selector_widget.dart';
+import 'form_fields/field_label_widget.dart';
 
 /// Simple mocked field builder widget using DATA MODEL approach only
 class FieldBuilderWidget extends ConsumerStatefulWidget {
@@ -34,20 +35,6 @@ class FieldBuilderWidget extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<FieldBuilderWidget> createState() => _FieldBuilderWidgetState();
-}
-
-/// Mocked icon system using data model approach - no external dependencies
-class FieldTypeIconMapper {
-  static IconData getIconForFieldType(FieldType fieldType) {
-    // Mocked with simple default icon - using data model approach
-    return Icons.edit; // Simple mock icon for all field types
-  }
-
-  /// Get icon name for debugging/display purposes
-  static String getIconNameForFieldType(FieldType fieldType) {
-    // Simple mock icon name for all field types
-    return 'edit';
-  }
 }
 
 class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
@@ -84,69 +71,13 @@ class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
   }
 
   Widget _buildFieldLabel() {
-    return Row(
-      children: [
-        // Simple mocked icon using data model approach
-        Icon(
-          Icons.edit, // Mocked icon for all field types
-          size: 16,
-          color: widget.isLocked
-              ? AppConstants.primaryColor
-              : AppConstants.hintColor,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '${widget.field.displayName}${widget.isRequired ? ' *' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: widget.isLocked
-                ? AppConstants.primaryColor
-                : AppConstants.textColor,
-          ),
-        ),
-        if (widget.field.features.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          ...widget.field.features
-              .take(2)
-              .map((feature) => _buildFeatureBadge(feature)),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildFeatureBadge(FieldFeature feature) {
-    Color badgeColor;
-    switch (feature) {
-      case FieldFeature.required:
-        badgeColor = Colors.red;
-        break;
-      case FieldFeature.plus:
-        badgeColor = AppConstants.primaryColor;
-        break;
-      case FieldFeature.md:
-        badgeColor = AppConstants.secondaryColor;
-        break;
-      default:
-        badgeColor = Colors.grey;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: badgeColor.withOpacity(0.3)),
-      ),
-      child: Text(
-        feature.displayName,
-        style: GoogleFonts.cairo(
-          fontSize: 10,
-          color: badgeColor,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+    return FieldLabelWidget(
+      field: widget.field,
+      isRequired: widget.isRequired,
+      isLocked: widget.isLocked,
+      showIcon: true,
+      showFeatureBadges: true,
+      maxFeatureBadges: 2,
     );
   }
 
@@ -177,7 +108,6 @@ class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
       hint: 'أدخل ${widget.field.displayName}',
       controller: _internalController,
       isRequired: widget.isRequired,
-      icon: Icons.edit, // Mocked icon
       onChanged: (value) => widget.onChanged(value),
     );
   }
@@ -188,7 +118,6 @@ class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
       controller: _internalController,
       isRequired: widget.isRequired,
       maxLines: widget.field.hasFeature(FieldFeature.long) ? 8 : 4,
-      icon: Icons.description, // Mocked icon
       onChanged: (value) => widget.onChanged(value),
     );
   }
@@ -199,7 +128,6 @@ class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
       controller: _internalController,
       isRequired: widget.isRequired,
       keyboardType: TextInputType.number,
-      icon: Icons.numbers, // Mocked icon
       onChanged: (value) => widget.onChanged(value),
     );
   }
@@ -210,7 +138,6 @@ class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
       controller: _internalController,
       isRequired: widget.isRequired,
       keyboardType: TextInputType.emailAddress,
-      icon: Icons.email, // Mocked icon
       onChanged: (value) => widget.onChanged(value),
     );
   }
@@ -221,7 +148,6 @@ class _FieldBuilderWidgetState extends ConsumerState<FieldBuilderWidget> {
       controller: _internalController,
       isRequired: widget.isRequired,
       keyboardType: TextInputType.phone,
-      icon: Icons.phone, // Mocked icon
       onChanged: (value) => widget.onChanged(value),
     );
   }
