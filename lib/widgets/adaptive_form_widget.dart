@@ -3,10 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
 import '../models/field_config.dart';
 import '../models/form_structure.dart';
-import '../utils/arabic_text_utils.dart';
+import '../utils/arabic_text_utils.dart'; // Keep for backward compatibility
+import '../utils/arabic/arabic_validators.dart';
+import '../form/validators/form_validators.dart';
 import '../widgets/arabic_form_field.dart';
 import '../services/local_database_service.dart';
 import 'form_fields/field_label_widget.dart';
+import 'form/dropdown_field_widget.dart';
+import 'form/autocomplete_field_widget.dart';
 
 class AdaptiveFormWidget extends StatefulWidget {
   final FormStructure structure;
@@ -505,189 +509,19 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
   }
 
   Widget _buildAutocompleteField(FieldConfig field) {
-    final isDynamicField = field.isDynamic;
+    final controller = _controllers[field.name];
+    if (controller == null) return const SizedBox();
 
     // Debug print
     print(
         '🎯 Building autocomplete field for: "${field.displayName}" with ${field.options.length} options');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppConstants.textColor,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDynamicField
-                  ? AppConstants.primaryColor.withOpacity(0.4)
-                  : AppConstants.hintColor.withOpacity(0.3),
-            ),
-          ),
-          child: FutureBuilder<List<String>>(
-            future: _getAutocompleteOptions(field),
-            builder: (context, snapshot) {
-              final options = snapshot.data ?? field.options;
-              final isLoading =
-                  snapshot.connectionState == ConnectionState.waiting;
-
-              // Show loading indicator when data is loading
-              if (isLoading && options.isEmpty) {
-                return Container(
-                  height: 60,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppConstants.primaryColor,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'جاري تحميل الخيارات...',
-                        style: GoogleFonts.cairo(
-                          color: AppConstants.hintColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return Autocomplete<String>(
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    // Show top 5 options when field is empty for better UX
-                    return options.take(5);
-                  }
-
-                  // Enhanced Arabic text matching with fuzzy search
-                  return options.where((String option) {
-                    return ArabicTextUtils.arabicFuzzyMatch(
-                        option, textEditingValue.text);
-                  });
-                },
-                onSelected: (String selection) {
-                  _controllers[field.name]!.text = selection;
-                },
-                fieldViewBuilder: (BuildContext context,
-                    TextEditingController fieldController,
-                    FocusNode fieldFocusNode,
-                    VoidCallback onFieldSubmitted) {
-                  // Only set initial value if not already set to avoid cursor issues
-                  if (fieldController.text != _controllers[field.name]!.text) {
-                    fieldController.text = _controllers[field.name]!.text;
-                  }
-
-                  fieldController.addListener(() {
-                    _controllers[field.name]!.text = fieldController.text;
-                  });
-
-                  return TextFormField(
-                    controller: fieldController,
-                    focusNode: fieldFocusNode,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      hintText: 'اكتب أو اختر ${field.displayName}',
-                      hintStyle: GoogleFonts.cairo(
-                        color: AppConstants.hintColor,
-                      ),
-                      suffixIcon: isLoading
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppConstants.primaryColor,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              Icons.arrow_drop_down,
-                              color: AppConstants.hintColor,
-                            ),
-                    ),
-                    style: GoogleFonts.cairo(),
-                    validator: _isRequiredField(field.name)
-                        ? (value) => value == null || value.isEmpty
-                            ? 'يرجى إدخال ${field.displayName}'
-                            : null
-                        : null,
-                  );
-                },
-                optionsViewBuilder: (BuildContext context,
-                    AutocompleteOnSelected<String> onSelected,
-                    Iterable<String> options) {
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 4.0,
-                      borderRadius: BorderRadius.circular(8),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: 200,
-                          maxWidth: MediaQuery.of(context).size.width - 40,
-                        ),
-                        child: options.isEmpty
-                            ? Container(
-                                padding: const EdgeInsets.all(16),
-                                child: Text(
-                                  'لا توجد خيارات متاحة',
-                                  style: GoogleFonts.cairo(
-                                    color: AppConstants.hintColor,
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: EdgeInsets.zero,
-                                shrinkWrap: true,
-                                itemCount: options.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final String option =
-                                      options.elementAt(index);
-                                  return ListTile(
-                                    title: Text(
-                                      option,
-                                      style: GoogleFonts.cairo(),
-                                    ),
-                                    onTap: () {
-                                      onSelected(option);
-                                    },
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
+    return AutocompleteFieldWidget(
+      field: field,
+      controller: controller,
+      getAutocompleteOptions: _getAutocompleteOptions,
+      onFieldChanged: _handleFieldInteraction,
+      isRequiredField: _isRequiredField,
     );
   }
 
@@ -699,7 +533,7 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
     options.addAll(field.options);
 
     // Special handling for author columns - get from multiple sources
-    if (ArabicTextUtils.isAuthorColumn(field.name)) {
+    if (ArabicValidators.isAuthorColumn(field.name)) {
       try {
         // Get authors from local database
         final localDbService = LocalDatabaseService();
@@ -709,7 +543,7 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
         for (final author in authorsData) {
           if (author is Map<String, dynamic>) {
             final name = author['author_name']?.toString() ?? '';
-            if (ArabicTextUtils.isValidAuthorName(name)) {
+            if (ArabicValidators.isValidAuthorName(name)) {
               options.add(name.trim());
             }
           }
@@ -729,7 +563,7 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
           '🎯 Dynamic field "${field.displayName}" has ${options.length} autocomplete options');
 
       // If this is a dynamic restriction column like "ممنوع", add common values
-      if (ArabicTextUtils.isRestrictionColumn(field.name)) {
+      if (ArabicValidators.isRestrictionColumn(field.name)) {
         options.addAll(ArabicTextUtils.getCommonRestrictionValues());
       }
     }
@@ -1722,97 +1556,18 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
   }
 
   Widget _buildDropdownField(FieldConfig field) {
-    final isDynamicField = field.isDynamic;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${field.displayName} ${_isRequiredField(field.name) ? '*' : ''}',
-          style: GoogleFonts.cairo(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppConstants.textColor,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDynamicField
-                  ? AppConstants.primaryColor.withOpacity(0.4)
-                  : AppConstants.hintColor.withOpacity(0.3),
-            ),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: _dropdownValues[field.name],
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
-            hint: Text(
-              'اختر ${field.displayName}',
-              style: GoogleFonts.cairo(
-                color: AppConstants.hintColor,
-              ),
-            ),
-            validator: _isRequiredField(field.name)
-                ? (value) => value == null || value.isEmpty
-                    ? 'يرجى اختيار ${field.displayName}'
-                    : null
-                : null,
-            items: [
-              // Add "Other" option if field has "plus" feature
-              if (field.hasFeature(FieldFeature.plus))
-                DropdownMenuItem<String>(
-                  value: '__other__',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.add,
-                        size: 16,
-                        color: AppConstants.primaryColor,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'أخرى (إضافة جديد)',
-                        style: GoogleFonts.cairo(
-                          color: AppConstants.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              // Add existing options
-              ...field.options.map((option) {
-                return DropdownMenuItem<String>(
-                  value: option,
-                  child: Text(
-                    option,
-                    style: GoogleFonts.cairo(),
-                  ),
-                );
-              }).toList(),
-            ],
-            onChanged: (value) {
-              setState(() {
-                if (value == '__other__') {
-                  _showAddNewOptionDialog(field);
-                } else {
-                  _dropdownValues[field.name] = value;
-                  // Trigger field interaction handlers
-                  _handleFieldInteraction(field, value ?? '');
-                }
-              });
-            },
-          ),
-        ),
-      ],
+    return DropdownFieldWidget(
+      field: field,
+      value: _dropdownValues[field.name],
+      onChanged: (value) {
+        setState(() {
+          _dropdownValues[field.name] = value;
+          // Trigger field interaction handlers
+          _handleFieldInteraction(field, value ?? '');
+        });
+      },
+      isRequiredField: _isRequiredField,
+      onAddNewOption: _showAddNewOptionDialog,
     );
   }
 
@@ -2760,8 +2515,8 @@ class _AdaptiveFormWidgetState extends State<AdaptiveFormWidget> {
   }
 
   bool _isRequiredField(String fieldName) {
-    final requiredFields = ['اسم الكتاب', 'اسم المؤلف', 'التصنيف', 'الموقع'];
-    return requiredFields.any((required) => fieldName.contains(required));
+    // Use FormValidators helper method
+    return FormValidators.isRequiredField(fieldName);
   }
 
   bool _isLockableField(String fieldName) {

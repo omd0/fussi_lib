@@ -1,48 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_constants.dart';
-
-InputDecoration _inputDecoration({required String hint, IconData? icon}) {
-  return InputDecoration(
-    hintText: hint,
-    hintStyle: GoogleFonts.cairo(
-      color: AppConstants.hintColor,
-    ),
-    filled: true,
-    fillColor: AppConstants.backgroundColor,
-    prefixIcon: icon != null ? Icon(icon, color: AppConstants.hintColor) : null,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(
-        color: AppConstants.hintColor.withOpacity(0.2),
-      ),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(
-        color: AppConstants.hintColor.withOpacity(0.2),
-      ),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(
-        color: AppConstants.primaryColor,
-        width: 2,
-      ),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(
-        color: Colors.red,
-        width: 1.5,
-      ),
-    ),
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: 16,
-      vertical: 16,
-    ),
-  );
-}
+import '../form/decorations/input_decorations.dart';
+import '../form/validators/form_validators.dart';
 
 class ArabicFormField extends StatelessWidget {
   final String hint;
@@ -79,21 +39,15 @@ class ArabicFormField extends StatelessWidget {
           fontSize: 16,
           color: AppConstants.textColor,
         ),
-        decoration: _inputDecoration(
+        decoration: InputDecorations.buildArabicDecoration(
           hint: hint,
           icon: icon,
         ),
-        validator: validator ?? (isRequired ? _defaultValidator : null),
+        validator: validator ??
+            (isRequired ? FormValidators.defaultRequiredValidator : null),
         onChanged: onChanged,
       ),
     );
-  }
-
-  String? _defaultValidator(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'هذا الحقل مطلوب';
-    }
-    return null;
   }
 }
 
@@ -121,7 +75,7 @@ class ArabicDropdownField extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: DropdownButtonFormField<String>(
         value: value,
-        decoration: _inputDecoration(
+        decoration: InputDecorations.buildArabicDecoration(
           hint: 'اختر $label',
           icon: icon,
         ),
